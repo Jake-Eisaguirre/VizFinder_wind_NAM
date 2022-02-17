@@ -11,13 +11,13 @@ knitr::opts_chunk$set(echo = TRUE)
 library(here)
 library(tidyverse)
 library(raster)
+library(REdaS)
 ```
 
+# download u and v component of wind
 ```{r}
 
-
-
-url_ucomp <- "https://www.ncei.noaa.gov/thredds/ncss/model-nam218/202202/20220214/nam_218_20220214_1800_084.grb2?var=u-component_of_wind_maximum_wind&north=34.75&west=-121.4&east=-117.07&south=32.36&horizStride=1&time_start=2022-02-18T06%3A00%3A00Z&time_end=2022-02-18T06%3A00%3A00Z&timeStride=1&vertCoord="
+url_ucomp <- "https://www.ncei.noaa.gov/thredds/ncss/model-nam218/202202/20220214/nam_218_20220214_1800_084.grb2?var=u-component_of_wind_planetary_boundary&north=34.75&west=-121.4&east=-117.07&south=32.36&disableProjSubset=on&horizStride=1&time_start=2022-02-18T06%3A00%3A00Z&time_end=2022-02-18T06%3A00%3A00Z&timeStride=1&vertCoord="
 
 download.file(url_ucomp, here("wind_u"))
 
@@ -25,11 +25,11 @@ wind_u <- here("wind_u")
 
 wind_u <- raster(wind_u)
 
-wind_u <- as.data.frame(rasterToPoints(wind_data))
+wind_u <- as.data.frame(rasterToPoints(wind_u))
 
 
 
-url_vcomp <- "https://www.ncei.noaa.gov/thredds/ncss/model-nam218/202202/20220214/nam_218_20220214_1800_084.grb2?var=v-component_of_wind_maximum_wind&north=34.75&west=-121.4&east=-117.07&south=32.36&horizStride=1&time_start=2022-02-18T06%3A00%3A00Z&time_end=2022-02-18T06%3A00%3A00Z&timeStride=1&vertCoord="
+url_vcomp <- "https://www.ncei.noaa.gov/thredds/ncss/model-nam218/202202/20220214/nam_218_20220214_1800_084.grb2?var=v-component_of_wind_planetary_boundary&north=34.75&west=-121.4&east=-117.07&south=32.36&disableProjSubset=on&horizStride=1&time_start=2022-02-18T06%3A00%3A00Z&time_end=2022-02-18T06%3A00%3A00Z&timeStride=1&vertCoord="
 
 download.file(url_vcomp, here("wind_v"))
 
@@ -38,5 +38,16 @@ wind_v <- here("wind_v")
 wind_v <- raster(wind_v)
 
 wind_v <- as.data.frame(rasterToPoints(wind_v))
+```
+
+# convert u and v
+```{r}
+
+wind_data <- left_join(wind_u, wind_v, by = c("x", "y"))
+
+wind_data <- wind_data %>% 
+  mutate(wind = (sqrt((wind_u^2) + (wind_v^2)))*1.94) %>% 
+  mutate(angle = rad2deg(atan2(wind_u, wind_v)))
+
 ```
 
