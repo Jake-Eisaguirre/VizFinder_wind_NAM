@@ -12,6 +12,7 @@ library(here)
 library(tidyverse)
 library(raster)
 library(REdaS)
+library(sf)
 ```
 
 # download u and v component of wind
@@ -47,7 +48,40 @@ wind_data <- left_join(wind_u, wind_v, by = c("x", "y"))
 
 wind_data <- wind_data %>% 
   mutate(wind = (sqrt((wind_u^2) + (wind_v^2)))*1.94) %>% 
-  mutate(angle = rad2deg(atan2(wind_u, wind_v)))
+  mutate(angle = rad2deg(atan2(wind_u, wind_v))) %>% 
+  mutate(angle = ifelse(angle < 190, abs(angle)+180)) %>% 
+  dplyr::select(-c(wind_u, wind_v))
 
+wind_ras <- wind_data %>% 
+  dplyr::select(-c(angle))
+
+wind_ras <-rasterFromXYZ(wind_ras)
+
+crs(wind_ras) <- crs("+proj=utm +zone=10 +datum=WGS84 +units=m +no_defs +ellps=WGS84")
+
+wind_ras <- projectRaster(wind_ras, crs = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84"))
+
+```
+
+```{r}
+cha <- read_sf(here("data","shape", "channel_islands.shp")) %>% 
+  mutate(geometry = st_transform(geometry, 4326))
+
+ca <- read_sf(here("data","shape","s_11au16", "s_11au16.shp")) %>% 
+  mutate(geometry = st_transform(geometry, 4326)) %>% 
+  filter(NAME == "California")
+
+
+merged_shapes_mask <- bind_rows(ca, cha)
+
+rm(cha, ca)
+gc()
+
+```
+
+```{r}
+
+ggplot(data = wind_data) +
+  geom_tile(aes(x=x, y=y, fill = wind))
 ```
 
