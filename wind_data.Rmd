@@ -13,6 +13,8 @@ library(tidyverse)
 library(raster)
 library(REdaS)
 library(sf)
+library(ggquiver)
+library(terra)
 ```
 
 # download u and v component of wind
@@ -46,20 +48,20 @@ wind_v <- as.data.frame(rasterToPoints(wind_v))
 
 wind_data <- left_join(wind_u, wind_v, by = c("x", "y"))
 
-wind_data <- wind_data %>% 
-  mutate(wind = (sqrt((wind_u^2) + (wind_v^2)))*1.94) %>% 
-  mutate(angle = rad2deg(atan2(wind_u, wind_v))) %>% 
-  mutate(angle = ifelse(angle < 190, abs(angle)+180)) %>% 
+wind_ras <- wind_data %>%
+  mutate(wind = (sqrt((wind_u^2) + (wind_v^2)))*1.94) %>%
+  mutate(angle = rad2deg(atan2(wind_u, wind_v))) %>%
+  mutate(angle = ifelse(angle < 190, abs(angle)+180)) %>%
   dplyr::select(-c(wind_u, wind_v))
 
-wind_ras <- wind_data %>% 
+wind_ras <- wind_ras %>% 
   dplyr::select(-c(angle))
 
-wind_ras <-rasterFromXYZ(wind_ras)
 
-crs(wind_ras) <- crs("+proj=utm +zone=10 +datum=WGS84 +units=m +no_defs +ellps=WGS84")
-
-wind_ras <- projectRaster(wind_ras, crs = CRS("+proj=longlat +ellps=WGS84 +datum=WGS84"))
+wind_spatial <- wind_ras %>%
+  st_as_sf(coords = c("x", "y"), crs = "+proj=utm +zone=11 +datum=WGS84  +units=m") %>%
+  st_transform(geometry, "+proj=longlat +datum=WGS84",
+                                 crs = 4326)
 
 ```
 
@@ -72,16 +74,33 @@ ca <- read_sf(here("data","shape","s_11au16", "s_11au16.shp")) %>%
   filter(NAME == "California")
 
 
-merged_shapes_mask <- bind_rows(ca, cha)
+# merged_shapes_mask <- bind_rows(ca, cha)
+# 
+# rm(cha, ca)
+# gc()
 
-rm(cha, ca)
-gc()
+```
+# pal
+```{r}
+
+cols <- c("grey60", "violet", "blue", "green", "orange", "red", "black")
+
+pal <- palette(c("grey60", "violet", "blue", "green", "orange", "red", "black"))
+
+plot(pal(10))
 
 ```
 
 ```{r}
 
-ggplot(data = wind_data) +
-  geom_tile(aes(x=x, y=y, fill = wind))
+ggplot() +
+  geom_raster(data = wind_ras, aes(x=x, y=y, fill = wind), interpolate = T,) +
+  geom_quiver(data = wind_data, aes(x=x, y=y, u=cos(wind_u),v=sin(wind_v)), vecsize = 0.8,
+              rescale = F) +
+  theme_classic() +
+  scale_fill_viridis_c(option = "turbo")
+  
+  +
+  geom_sf(data = cha, color = "black", fill = "grey60")
 ```
 
