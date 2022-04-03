@@ -13,14 +13,29 @@ library(tidyverse)
 library(raster)
 library(REdaS)
 library(sf)
-library(ggquiver)
+library(lubridate)
 library(terra)
 ```
+
+# date function
+```{r}
+date <- as.Date(Sys.time())
+
+year <- year(date)
+
+day <- format(as.Date(Sys.time(), format = "%Y-%m-%d"), format = "%d")
+
+day <- c("01")
+
+month <- format(as.Date(Sys.time(), format = "%Y-%m-%d"), format = "%m") 
+
+```
+
 
 # download u and v component of wind
 ```{r}
 
-url_ucomp <- "https://www.ncei.noaa.gov/thredds/ncss/model-nam218/202202/20220214/nam_218_20220214_1800_084.grb2?var=u-component_of_wind_planetary_boundary&north=34.75&west=-121.4&east=-117.07&south=32.36&disableProjSubset=on&horizStride=1"
+url_ucomp <- paste0("https://www.ncei.noaa.gov/thredds/ncss/model-nam218/",year , month, "/", year, month, day,"/nam_218_", year, month, day,"_0000_084.grb2?var=u-component_of_wind_planetary_boundary&north=34.75&west=-121.4&east=-117.07&south=32.36&disableProjSubset=on&horizStride=1")
 
 download.file(url_ucomp, here("wind_u"))
 
