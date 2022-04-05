@@ -25,7 +25,7 @@ year <- year(date)
 
 day <- format(as.Date(Sys.time(), format = "%Y-%m-%d"), format = "%d")
 
-day <- c("01")
+#day <- c("01")
 
 month <- format(as.Date(Sys.time(), format = "%Y-%m-%d"), format = "%m") 
 
