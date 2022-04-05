@@ -25,7 +25,7 @@ year <- year(date)
 
 day <- format(as.Date(Sys.time(), format = "%Y-%m-%d"), format = "%d")
 
-#day <- c("01")
+day <- c("04")
 
 month <- format(as.Date(Sys.time(), format = "%Y-%m-%d"), format = "%m") 
 
@@ -35,11 +35,15 @@ month <- format(as.Date(Sys.time(), format = "%Y-%m-%d"), format = "%m")
 # download u and v component of wind
 ```{r}
 
-url_ucomp <- paste0("https://www.ncei.noaa.gov/thredds/ncss/model-nam218/",year , month, "/", year, month, day,"/nam_218_", year, month, day,"_0000_084.grb2?var=u-component_of_wind_planetary_boundary&north=34.75&west=-121.4&east=-117.07&south=32.36&disableProjSubset=on&horizStride=1")
+url_ucomp <- paste0("https://www.ncei.noaa.gov/thredds/ncss/model-nam218/",year , month, "/", year, month, day,"/nam_218_", year, month, day,"_2400_084.grb2?var=u-component_of_wind_planetary_boundary&north=34.75&west=-121.4&east=-117.07&south=32.36&disableProjSubset=on&horizStride=1")
+
+# url_ucomp <- "http://api.planetos.com/v1/datasets/noaa_nam_awips_12/point?var=u-component_of_wind_planetary_boundary&lat=37.383252&lon=122.005152&buffer=1&csv=true&reftime_start=2022-04-05T12%3A00%3A00Z&apikey=e5102ee5d77e422eaa5dea4124ba2165"
 
 download.file(url_ucomp, here("wind_u"))
 
 wind_u <- here("wind_u")
+
+wind_u <- read_csv(wind_u)
 
 wind_u <- raster(wind_u)
 
