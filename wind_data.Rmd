@@ -17,6 +17,7 @@ library(lubridate)
 library(terra)
 library(jsonlite)
 library(httr)
+library(ggquiver)
 
 ```
 
@@ -42,64 +43,85 @@ url_ucomp <- paste0("https://www.ncei.noaa.gov/thredds/ncss/model-nam218/",year 
 
 url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_nam_awips_12/point?var=u-component_of_wind_planetary_boundary&lat=34.383252&lon=-119.005152&buffer=10&nearest=false&reftime_recent=true&max_count=true&apikey=e5102ee5d77e422eaa5dea4124ba2165")
 
-res <- GET(url_ucomp)
-
-wind_u <- fromJSON(url_ucomp) %>% 
-  data.frame()
-
-names(wind_u)
-
-rawToChar(res$content)
+url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121,34],[-117,34],[-117,32],[-121,32],[-121,34]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=50000&variables=u-component_of_wind_planetary_boundary")
 
 
-data =fromJSON(rawToChar(res$times))
-
-names(data)
-
-data$stats
+wind_u <- download.file(url_ucomp, here("wind_u"))
 
 wind_u <- here("wind_u")
 
-wind_u <- readJS(wind_u)
-
-wind_u <- raster(wind_u)
-
-wind_u <- as.data.frame(rasterToPoints(wind_u))
+wind_u <- read_csv(wind_u)
 
 
 
-url_vcomp <- "https://www.ncei.noaa.gov/thredds/ncss/model-nam218/202202/20220214/nam_218_20220214_1800_084.grb2?var=v-component_of_wind_planetary_boundary&north=34.75&west=-121.4&east=-117.07&south=32.36&disableProjSubset=on&horizStride=1&time_start=2022-02-18T06%3A00%3A00Z&time_end=2022-02-18T06%3A00%3A00Z&timeStride=1&vertCoord="
+url_vcomp <- "http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121,34],[-117,34],[-117,32],[-121,32],[-121,34]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=50000&variables=v-component_of_wind_planetary_boundary"
 
 download.file(url_vcomp, here("wind_v"))
 
 wind_v <- here("wind_v")
 
-wind_v <- raster(wind_v)
-
-wind_v <- as.data.frame(rasterToPoints(wind_v))
+wind_v <- read_csv(wind_v)
 ```
 
 # convert u and v
 ```{r}
 
-wind_data <- left_join(wind_u, wind_v, by = c("x", "y"))
+wind_data <- left_join(wind_u, wind_v, by = c("axis:latitude", "axis:longitude"))
+
+wind_data <- wind_data %>% 
+  as.data.frame() %>% 
+  dplyr::select(!c("axis:time.y", "axis:reftime.y")) 
+
+names(wind_data) <- substring(names(wind_data), 6)
+
+wind_data <- wind_data %>% 
+  rename(reftime = reftime.x) %>% 
+  rename(date = time.x) %>% 
+  rename(u = `u-component_of_wind_planetary_boundary`) %>% 
+  rename(v = `v-component_of_wind_planetary_boundary`)
 
 wind_ras <- wind_data %>%
-  mutate(wind = (sqrt((wind_u^2) + (wind_v^2)))*1.94) %>%
-  mutate(angle = rad2deg(atan2(wind_u, wind_v))) %>%
+  mutate(wind = (sqrt((u^2) + (v^2)))*1.94) %>%
+  mutate(angle = rad2deg(atan2(u, v))) %>%
   mutate(angle = ifelse(angle < 190, abs(angle)+180)) %>%
-  dplyr::select(-c(wind_u, wind_v))
+  dplyr::select(-c(u, v)) %>% 
+  group_by(date) %>% 
+  dplyr::select(!c("reftime", "angle")) %>% 
+  rename(x = longitude) %>% 
+  rename(y = latitude)
 
-wind_ras <- wind_ras %>% 
-  dplyr::select(-c(angle))
+clean_wind_ras <- wind_ras %>% 
+  pivot_wider(names_from = date, values_from = wind) %>% 
+  unnest() %>% 
+  dplyr::select(x, everything()) %>% 
+  filter(x == unique(x),
+         y == unique(y))
 
-
-wind_spatial <- wind_ras %>%
-  st_as_sf(coords = c("x", "y"), crs = "+proj=utm +zone=11 +datum=WGS84  +units=m") %>%
-  st_transform(geometry, "+proj=longlat +datum=WGS84",
-                                 crs = 4326)
 
 ```
+
+
+```{r}
+
+wind_ras_brick <- rasterFromXYZ(clean_wind_ras)
+
+plot(wind_ras_brick)
+
+wind_res <- c(0.005, 0.005) 
+
+new_ras_wind <- raster(xmn = -121.4,
+                      xmx = -117.06,
+                      ymn = 32.36,
+                      ymx = 34.75,
+                      res = wind_res)
+
+re_samp_wind <- resample(wave_ras_brick, new_ras_wind, method = "bilinear")
+
+cropped_wind <- mask(re_samp_wind, merged_shapes, inverse = T)
+
+final_ras_wind <- projectRaster(cropped_wind, crs = 4326)
+```
+
 
 ```{r}
 cha <- read_sf(here("data","shape", "channel_islands.shp")) %>% 
@@ -110,12 +132,13 @@ ca <- read_sf(here("data","shape","s_11au16", "s_11au16.shp")) %>%
   filter(NAME == "California")
 
 
-# merged_shapes_mask <- bind_rows(ca, cha)
+merged_shapes_mask <- bind_rows(ca, cha)
 # 
 # rm(cha, ca)
 # gc()
 
 ```
+
 # pal
 ```{r}
 
@@ -129,10 +152,23 @@ plot(pal(10))
 
 ```{r}
 
-ggplot() +
-  geom_raster(data = wind_ras, aes(x=x, y=y, fill = wind), interpolate = T,) +
-  geom_quiver(data = wind_data, aes(x=x, y=y, u=cos(wind_u),v=sin(wind_v)), vecsize = 0.8,
-              rescale = F) +
+wind_ras <- wind_ras %>% 
+  filter(date == "2022-04-12 12:00:00")
+
+wind_data <- wind_data %>% 
+  filter(date == "2022-04-12 12:00:00")
+
+wind_ras_t <- wind_ras %>% 
+    filter(longitude %in% sort(unique(longitude))[c(T, F, F, F, F, F, F, F, 
+                                    F, F, F, F, F, F, F, F, F)], 
+           latitude %in% sort(unique(latitude))[c(T, F, F, F, F, F, F, F, 
+                                    F, F, F, F, F, F, F, F, F)])
+
+ggplot(data = wind_ras) +
+  geom_raster(aes(y=latitude, x=longitude, fill = wind), interpolate = T,) +
+  geom_spoke(data = wind_ras_t, aes(y=latitude, x=longitude, angle = angle, 
+                                           radius = scales::rescale(wind, c(.02, .15))), 
+               arrow=arrow(length = unit(0.2,"cm"))) +
   theme_classic() +
   scale_fill_viridis_c(option = "turbo")
   
