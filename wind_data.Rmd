@@ -39,9 +39,6 @@ month <- format(as.Date(Sys.time(), format = "%Y-%m-%d"), format = "%m")
 # download u and v component of wind
 ```{r}
 
-url_ucomp <- paste0("https://www.ncei.noaa.gov/thredds/ncss/model-nam218/",year , month, "/", year, month, day,"/nam_218_", year, month, day,"_2400_084.grb2?var=u-component_of_wind_planetary_boundary&north=34.75&west=-121.4&east=-117.07&south=32.36&disableProjSubset=on&horizStride=1")
-
-url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_nam_awips_12/point?var=u-component_of_wind_planetary_boundary&lat=34.383252&lon=-119.005152&buffer=10&nearest=false&reftime_recent=true&max_count=true&apikey=e5102ee5d77e422eaa5dea4124ba2165")
 
 url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121,34],[-117,34],[-117,32],[-121,32],[-121,34]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=50000&variables=u-component_of_wind_planetary_boundary")
 
@@ -88,24 +85,51 @@ wind_ras <- wind_data %>%
   group_by(date) %>% 
   dplyr::select(!c("reftime", "angle")) %>% 
   rename(x = longitude) %>% 
-  rename(y = latitude)
+  rename(y = latitude)%>% 
+  dplyr::select(x, everything())
 
-clean_wind_ras <- wind_ras %>% 
-  pivot_wider(names_from = date, values_from = wind) %>% 
-  unnest() %>% 
-  dplyr::select(x, everything()) %>% 
-  filter(x == unique(x),
-         y == unique(y))
+# clean_wind_ras <- wind_ras %>% 
+#   pivot_wider(names_from = date, values_from = wind) %>% 
+#   unnest() %>% 
+#   dplyr::select(x, everything())
 
 
+```
+# Shape Files
+```{r}
+islands <- read_sf(here('data', "shape",'island_shape', "channel_islands.shp")) %>% 
+  mutate(geometry = st_transform(geometry, crs = 4326))
+
+ca <- read_sf(here('data', "shape","s_11au16", "s_11au16.shp")) %>% 
+  mutate(geometry = st_transform(geometry, crs = 4326)) %>% 
+  filter(NAME == "California") %>% 
+  dplyr::select(geometry)
+
+merged_shapes <- bind_rows(ca, islands)
 ```
 
 
 ```{r}
+wind_res <- c(0.005, 0.005) 
 
-wind_ras_brick <- rasterFromXYZ(clean_wind_ras)
+new_ras_wind <- raster(xmn = -121.4,
+                      xmx = -117.06,
+                      ymn = 32.36,
+                      ymx = 34.75,
+                      res = wind_res)
 
-plot(wind_ras_brick)
+
+r <- brick(new_ras_wind)
+
+wind_coords <- st_as_sf(wind_ras, coords = c("x","y"))
+wind_coords <- as(wind_coords, "Spatial") 
+
+for(i in unique(wind_ras$date)) {
+  
+  rs <- addLayer(r, rasterize(wind_coords[wind_coords$date == i,], r, field = wind_coords$wind))
+}
+
+
 
 wind_res <- c(0.005, 0.005) 
 
@@ -115,7 +139,7 @@ new_ras_wind <- raster(xmn = -121.4,
                       ymx = 34.75,
                       res = wind_res)
 
-re_samp_wind <- resample(wave_ras_brick, new_ras_wind, method = "bilinear")
+re_samp_wind <- resample(rs, new_ras_wind, method = "bilinear")
 
 cropped_wind <- mask(re_samp_wind, merged_shapes, inverse = T)
 
