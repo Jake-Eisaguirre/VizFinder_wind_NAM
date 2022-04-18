@@ -40,7 +40,7 @@ month <- format(as.Date(Sys.time(), format = "%Y-%m-%d"), format = "%m")
 ```{r}
 
 
-url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121,34],[-117,34],[-117,32],[-121,32],[-121,34]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=50000&variables=u-component_of_wind_planetary_boundary")
+url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=50000&variables=u-component_of_wind_planetary_boundary")
 
 
 wind_u <- download.file(url_ucomp, here("wind_u"))
@@ -51,7 +51,7 @@ wind_u <- read_csv(wind_u)
 
 
 
-url_vcomp <- "http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121,34],[-117,34],[-117,32],[-121,32],[-121,34]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=50000&variables=v-component_of_wind_planetary_boundary"
+url_vcomp <- "http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=50000&variables=v-component_of_wind_planetary_boundary"
 
 download.file(url_vcomp, here("wind_v"))
 
@@ -86,7 +86,8 @@ wind_ras <- wind_data %>%
   dplyr::select(!c("reftime", "angle")) %>% 
   rename(x = longitude) %>% 
   rename(y = latitude)%>% 
-  dplyr::select(x, everything())
+  dplyr::select(x, everything()) %>% 
+  relocate(wind, .before = date)
 
 # clean_wind_ras <- wind_ras %>% 
 #   pivot_wider(names_from = date, values_from = wind) %>% 
@@ -124,10 +125,12 @@ r <- brick(new_ras_wind)
 wind_coords <- st_as_sf(wind_ras, coords = c("x","y"))
 wind_coords <- as(wind_coords, "Spatial") 
 
-for(i in unique(wind_ras$date)) {
+for(i in seq_along(unique(wind_ras$date))) {
   
-  rs <- addLayer(r, rasterize(wind_coords[wind_coords$date == i,], r, field = wind_coords$wind))
+  rs <- addLayer(r, rasterFromXYZ(wind_ras[wind_ras$date == unique(wind_ras$date)[i],]))
 }
+
+data = loc[loc$date==unique(loc$date)[i],]
 
 
 
