@@ -18,6 +18,8 @@ library(terra)
 library(jsonlite)
 library(httr)
 library(ggquiver)
+library(gstat)
+library(automap)
 
 ```
 
@@ -43,9 +45,9 @@ month <- format(as.Date(Sys.time(), format = "%Y-%m-%d"), format = "%m")
 url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=50000&variables=u-component_of_wind_planetary_boundary")
 
 
-wind_u <- download.file(url_ucomp, here("wind_u"))
+wind_u <- download.file(url_ucomp, here("wind_u.csv"))
 
-wind_u <- here("wind_u")
+wind_u <- here("wind_u.csv")
 
 wind_u <- read_csv(wind_u)
 
@@ -53,9 +55,9 @@ wind_u <- read_csv(wind_u)
 
 url_vcomp <- "http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=50000&variables=v-component_of_wind_planetary_boundary"
 
-download.file(url_vcomp, here("wind_v"))
+download.file(url_vcomp, here("wind_v.csv"))
 
-wind_v <- here("wind_v")
+wind_v <- here("wind_v.csv")
 
 wind_v <- read_csv(wind_v)
 ```
@@ -89,13 +91,66 @@ wind_ras <- wind_data %>%
   dplyr::select(x, everything()) %>% 
   relocate(wind, .before = date)
 
+
+test <- wind_ras %>% ungroup %>% 
+  filter(date == "2022-04-26 12:00:00") %>% 
+  dplyr::select(!date) 
+
 # clean_wind_ras <- wind_ras %>% 
 #   pivot_wider(names_from = date, values_from = wind) %>% 
 #   unnest() %>% 
 #   dplyr::select(x, everything())
 
+cords <- test %>% ungroup
+
+cords_1 <- test %>% ungroup %>% 
+  dplyr::select(x,y) %>% 
+  SpatialPoints()
+
+idw <- gstat(id = "wind", formula = wind ~ 1, locations = ~x+y, data = cords)
+
+
+
+a <- rasterize(cords_1, new_ras_wind, field = test$wind) 
+
+%>% 
+  raster::interpolate(idw)
+
+plot(a)
+
+ggplot(test) +
+  geom_tile(aes(x=x, y=y, fill = wind, interpolate = T))
 
 ```
+
+```{r}
+crs = 4326
+sf_data <- st_as_sf(test, coords = c('x', 'y'), crs = 4326) %>% 
+  cbind(st_coordinates(.))
+
+
+#vario gram and model selection 
+jan_np_vario <- variogram(wind~1, as(sf_data, "Spatial"))
+
+plot(jan_np_vario)
+
+v_mod_full <- fit.variogram(jan_np_vario, vgm(psill = 150, "Exp", range = 200, nugget = 0.1))
+
+v_mod <- v_mod_full$var_model
+
+plot(v_mod_full)
+
+
+#krige 
+jan_krig_p <- krige(percent_n~1, as(sf_jan_np_data, "Spatial"), 
+                  grd_sp, model = v_mod)
+
+#convert kriged data to raster  
+jan_ras <- raster(jan_krig_p)
+
+```
+
+
 # Shape Files
 ```{r}
 islands <- read_sf(here('data', "shape",'island_shape', "channel_islands.shp")) %>% 
@@ -111,9 +166,10 @@ merged_shapes <- bind_rows(ca, islands)
 
 
 ```{r}
+
 wind_res <- c(0.005, 0.005) 
 
-new_ras_wind <- raster(xmn = -121.4,
+new_ras_wind <- raster(xmn = -121.40,
                       xmx = -117.06,
                       ymn = 32.36,
                       ymx = 34.75,
@@ -125,14 +181,19 @@ r <- brick(new_ras_wind)
 wind_coords <- st_as_sf(wind_ras, coords = c("x","y"))
 wind_coords <- as(wind_coords, "Spatial") 
 
-for(i in seq_along(unique(wind_ras$date))) {
+for(i in unique(wind_ras$date)) {
   
   rs <- addLayer(r, rasterFromXYZ(wind_ras[wind_ras$date == unique(wind_ras$date)[i],]))
 }
 
-data = loc[loc$date==unique(loc$date)[i],]
+
+for(i in unique(wind_ras$date)) {
+  
+  ras <- rasterFromXYZ(wind_ras[wind_ras$date == unique(wind_ras$date)[i],])
+}
 
 
+plot(rs)
 
 wind_res <- c(0.005, 0.005) 
 
@@ -142,11 +203,13 @@ new_ras_wind <- raster(xmn = -121.4,
                       ymx = 34.75,
                       res = wind_res)
 
-re_samp_wind <- resample(rs, new_ras_wind, method = "bilinear")
+re_samp_wind <- resample(a, new_ras_wind, method = "bilinear")
 
 cropped_wind <- mask(re_samp_wind, merged_shapes, inverse = T)
 
 final_ras_wind <- projectRaster(cropped_wind, crs = 4326)
+
+plot(final_ras_wind)
 ```
 
 
@@ -180,7 +243,7 @@ plot(pal(10))
 ```{r}
 
 wind_ras <- wind_ras %>% 
-  filter(date == "2022-04-12 12:00:00")
+  filter(date == "2022-04-26 12:00:00")
 
 wind_data <- wind_data %>% 
   filter(date == "2022-04-12 12:00:00")
@@ -191,8 +254,10 @@ wind_ras_t <- wind_ras %>%
            latitude %in% sort(unique(latitude))[c(T, F, F, F, F, F, F, F, 
                                     F, F, F, F, F, F, F, F, F)])
 
-ggplot(data = wind_ras) +
-  geom_raster(aes(y=latitude, x=longitude, fill = wind), interpolate = T,) +
+ggplot() +
+  geom_raster(a, interpolate = T) 
+
++
   geom_spoke(data = wind_ras_t, aes(y=latitude, x=longitude, angle = angle, 
                                            radius = scales::rescale(wind, c(.02, .15))), 
                arrow=arrow(length = unit(0.2,"cm"))) +
