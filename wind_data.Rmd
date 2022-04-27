@@ -27,25 +27,23 @@ library(automap)
 # download u and v component of wind
 ```{r}
 
-
 url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=50000&variables=u-component_of_wind_planetary_boundary")
 
+wind_u <- download.file(url_ucomp, here("data", "wind_u.csv"))
 
-wind_u <- download.file(url_ucomp, here("wind_u.csv"))
+wind_u <- here("data", "wind_u.csv") %>% 
+  read_csv()
 
-wind_u <- here("wind_u.csv")
-
-wind_u <- read_csv(wind_u)
 
 
 
 url_vcomp <- "http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=50000&variables=v-component_of_wind_planetary_boundary"
 
-download.file(url_vcomp, here("wind_v.csv"))
+download.file(url_vcomp, here("data", "wind_v.csv"))
 
-wind_v <- here("wind_v.csv")
+wind_v <- here("data", "wind_v.csv") %>% 
+  read_csv()
 
-wind_v <- read_csv(wind_v)
 ```
 
 # convert u and v
@@ -66,14 +64,14 @@ wind_data <- wind_data %>%
   rename(v = `v-component_of_wind_planetary_boundary`)
 
 wind_ras <- wind_data %>%
-  mutate(wind = (sqrt((u^2) + (v^2)))*1.94) %>%
-  mutate(angle = rad2deg(atan2(u, v))) %>%
-  mutate(angle = ifelse(angle < 190, abs(angle)+180),
+  mutate(wind = ((sqrt((u^2) + (v^2)))*1.94), 
+         angle = rad2deg(atan2(u, v)),
+         angle = ifelse(angle < 190, abs(angle)+180),
          date = as_datetime(date),
          date = as.factor(date)) %>%
   dplyr::select(-c(u, v)) %>% 
   group_by(date) %>% 
-  dplyr::select(!c("reftime")) %>% 
+  dplyr::select(!c("reftime", "angle")) %>% 
   rename(x = longitude) %>% 
   rename(y = latitude)%>% 
   dplyr::select(x, everything()) %>% 
@@ -106,12 +104,18 @@ merged_shapes <- bind_rows(ca, islands)
 
 ```{r}
 
+ras <- brick(xmn = -121.45,
+             xmx = -117.05,
+             ymn = 32.35,
+             ymx = 34.75)
+
 
 for(i in unique(wind_ras$date)) {
   
-  ras <- rasterFromXYZ(wind_ras[wind_ras$date == unique(wind_ras$date)[i],])
+  ras[[i]] <- rasterFromXYZ(wind_ras[wind_ras$date == unique(wind_ras$date)[i],])
 }
 
+plot(ras[[60]])
 
 wind_res <- c(0.005, 0.005) 
 
