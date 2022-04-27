@@ -23,20 +23,6 @@ library(automap)
 
 ```
 
-# date function
-```{r}
-date <- as.Date(Sys.time())
-
-year <- year(date)
-
-day <- format(as.Date(Sys.time(), format = "%Y-%m-%d"), format = "%d")
-
-day <- c("01")
-
-month <- format(as.Date(Sys.time(), format = "%Y-%m-%d"), format = "%m") 
-
-```
-
 
 # download u and v component of wind
 ```{r}
@@ -82,72 +68,25 @@ wind_data <- wind_data %>%
 wind_ras <- wind_data %>%
   mutate(wind = (sqrt((u^2) + (v^2)))*1.94) %>%
   mutate(angle = rad2deg(atan2(u, v))) %>%
-  mutate(angle = ifelse(angle < 190, abs(angle)+180)) %>%
+  mutate(angle = ifelse(angle < 190, abs(angle)+180),
+         date = as_datetime(date),
+         date = as.factor(date)) %>%
   dplyr::select(-c(u, v)) %>% 
   group_by(date) %>% 
-  dplyr::select(!c("reftime", "angle")) %>% 
+  dplyr::select(!c("reftime")) %>% 
   rename(x = longitude) %>% 
   rename(y = latitude)%>% 
   dplyr::select(x, everything()) %>% 
   relocate(wind, .before = date)
 
 
-test <- wind_ras %>% ungroup %>% 
-  filter(date == "2022-04-26 12:00:00") %>% 
-  dplyr::select(!date) 
-
-# clean_wind_ras <- wind_ras %>% 
-#   pivot_wider(names_from = date, values_from = wind) %>% 
-#   unnest() %>% 
-#   dplyr::select(x, everything())
-
-cords <- test %>% ungroup
-
-cords_1 <- test %>% ungroup %>% 
-  dplyr::select(x,y) %>% 
-  SpatialPoints()
-
-idw <- gstat(id = "wind", formula = wind ~ 1, locations = ~x+y, data = cords)
+test <- wind_ras %>% 
+  filter(date == "2022-04-26 12:00:00")
 
 
-
-a <- rasterize(cords_1, new_ras_wind, field = test$wind) 
-
-%>% 
-  raster::interpolate(idw)
+a <- rasterFromXYZ(test)
 
 plot(a)
-
-ggplot(test) +
-  geom_tile(aes(x=x, y=y, fill = wind, interpolate = T))
-
-```
-
-```{r}
-crs = 4326
-sf_data <- st_as_sf(test, coords = c('x', 'y'), crs = 4326) %>% 
-  cbind(st_coordinates(.))
-
-
-#vario gram and model selection 
-jan_np_vario <- variogram(wind~1, as(sf_data, "Spatial"))
-
-plot(jan_np_vario)
-
-v_mod_full <- fit.variogram(jan_np_vario, vgm(psill = 150, "Exp", range = 200, nugget = 0.1))
-
-v_mod <- v_mod_full$var_model
-
-plot(v_mod_full)
-
-
-#krige 
-jan_krig_p <- krige(percent_n~1, as(sf_jan_np_data, "Spatial"), 
-                  grd_sp, model = v_mod)
-
-#convert kriged data to raster  
-jan_ras <- raster(jan_krig_p)
-
 ```
 
 
@@ -167,33 +106,12 @@ merged_shapes <- bind_rows(ca, islands)
 
 ```{r}
 
-wind_res <- c(0.005, 0.005) 
-
-new_ras_wind <- raster(xmn = -121.40,
-                      xmx = -117.06,
-                      ymn = 32.36,
-                      ymx = 34.75,
-                      res = wind_res)
-
-
-r <- brick(new_ras_wind)
-
-wind_coords <- st_as_sf(wind_ras, coords = c("x","y"))
-wind_coords <- as(wind_coords, "Spatial") 
-
-for(i in unique(wind_ras$date)) {
-  
-  rs <- addLayer(r, rasterFromXYZ(wind_ras[wind_ras$date == unique(wind_ras$date)[i],]))
-}
-
 
 for(i in unique(wind_ras$date)) {
   
   ras <- rasterFromXYZ(wind_ras[wind_ras$date == unique(wind_ras$date)[i],])
 }
 
-
-plot(rs)
 
 wind_res <- c(0.005, 0.005) 
 
@@ -209,25 +127,11 @@ cropped_wind <- mask(re_samp_wind, merged_shapes, inverse = T)
 
 final_ras_wind <- projectRaster(cropped_wind, crs = 4326)
 
-plot(final_ras_wind)
+plot(final_ras_wind[[1]])
+
+
 ```
 
-
-```{r}
-cha <- read_sf(here("data","shape", "channel_islands.shp")) %>% 
-  mutate(geometry = st_transform(geometry, 4326))
-
-ca <- read_sf(here("data","shape","s_11au16", "s_11au16.shp")) %>% 
-  mutate(geometry = st_transform(geometry, 4326)) %>% 
-  filter(NAME == "California")
-
-
-merged_shapes_mask <- bind_rows(ca, cha)
-# 
-# rm(cha, ca)
-# gc()
-
-```
 
 # pal
 ```{r}
