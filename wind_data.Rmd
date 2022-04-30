@@ -22,6 +22,7 @@ library(gstat)
 library(automap)
 library(stars)
 library(magick)
+library(metR)
 
 ```
 
@@ -29,7 +30,7 @@ library(magick)
 # download u and v component of wind
 ```{r}
 
-url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=50000&variables=u-component_of_wind_planetary_boundary")
+url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=500000&variables=u-component_of_wind_planetary_boundary")
 
 wind_u <- download.file(url_ucomp, here("data", "wind_u.csv"))
 
@@ -39,7 +40,7 @@ wind_u <- here("data", "wind_u.csv") %>%
 
 
 
-url_vcomp <- "http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=50000&variables=v-component_of_wind_planetary_boundary"
+url_vcomp <- "http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=500000&variables=v-component_of_wind_planetary_boundary"
 
 download.file(url_vcomp, here("data", "wind_v.csv"))
 
@@ -65,12 +66,15 @@ wind_data <- wind_data %>%
   rename(u = `u-component_of_wind_planetary_boundary`) %>% 
   rename(v = `v-component_of_wind_planetary_boundary`)
 
+wind_angle <- wind_data %>% 
+  dplyr::select(c("latitude", "longitude", "u", "v", "date"))
+
 wind_ras <- wind_data %>%
   mutate(wind = ((sqrt((u^2) + (v^2)))*1.94), 
          angle = rad2deg(atan2(u, v)),
          angle = ifelse(angle < 190, abs(angle)+180),
          date = parse_date_time(date, "Ymd HMS", tz = "America/Los_Angeles" ),
-         date = factor(date)) %>%
+         date = as.factor(date)) %>%
   dplyr::select(-c(u, v)) %>% 
   group_by(date) %>% 
   dplyr::select(!c("reftime", "angle")) %>% 
@@ -80,30 +84,7 @@ wind_ras <- wind_data %>%
   relocate(wind, .before = date) %>% 
   ungroup()
 
-df <- wind_ras %>%
- group_by(x, y, levels(date)) %>% 
- summarize(wind = wind,
-           date = date,
-           x = x,
-          y =y)
 
-df <- wind_ras[order(levels(wind_ras$date)),]
-df$date_index <- 1:length(levels(df$date))
-
-
-a <- st_as_sf(wind_ras, coords=c('x','y'))
-
-b <- st_rasterize(a)
-
-
-
-wind_1 <- wind_ras %>% 
-  filter(date == )
-
-
-a <- rasterFromXYZ(test)
-
-plot(a)
 ```
 
 
@@ -387,30 +368,28 @@ gc()
 
 ```
 
-
+# ras re-sample
 ```{r}
 
-ras <- brick(xmn = -121.45,
-             xmx = -117.05,
-             ymn = 32.35,
-             ymx = 34.75)
+# ras <- brick(xmn = -121.45,
+#              xmx = -117.05,
+#              ymn = 32.35,
+#              ymx = 34.75)
 
 
 
 
-for(i in 1:levels(wind_ras$date)) {
-  
-  date = unique(wind_ras$date)
-  
-  test <- wind_ras %>%
-    filter(date == date)
-  
-  ras[[i]]<- rasterFromXYZ(test)
+# for(i in 1:levels(wind_ras$date)) {
+#   
+#   
+#   test <- wind_ras %>%
+#     filter(date == unique(date)[[i]])
+#   
+#   ras[[i]]<- rasterFromXYZ(test)
+# 
+# }
 
-}
 
-
-fsplot(ras[[1]])
 
 
 wind_res <- c(0.005, 0.005) 
@@ -427,15 +406,13 @@ cropped_wind <- mask(re_samp_wind, merged_shapes, inverse = T)
 
 final_ras_wind <- projectRaster(cropped_wind, crs = 4326)
 
-plot(final_ras_wind)
-
 
 ```
 
 # points
 ```{r}
 
-wind_data <- as.data.frame(rasterToPoints(final_ras_wind)) %>% 
+wind_ras_data <- as.data.frame(rasterToPoints(final_ras_wind)) %>% 
   pivot_longer(!c(x,y), names_to = "date", values_to = "wind")
 
 ```
@@ -443,9 +420,9 @@ wind_data <- as.data.frame(rasterToPoints(final_ras_wind)) %>%
 # pal
 ```{r}
 
-wind_pal <- colorRampPalette(c("grey60", "violet", "blue", "green", "orange", "red", "black"))
+wind_pal <- colorRampPalette(c("#606fb4", "#6070b4", "#3c6c9f", "#4788a6", "#488e9b", "#4d8d7b", "#4da048", "#55a042", "#749c38", "#9f7b49", "#9c655b", "#8d455b", "#8e436f", "#95498c", "#6d5d9a"))
 
-wind_limits <- 
+wind_limits <- c(0,60)
 
 
 
@@ -453,11 +430,11 @@ wind_limits <-
 
 
 ```{r}
-swell.list = lapply(sort(unique(wind_data$date)), function(i) {
-  ggplot(data = wind_data[wind_data$date==i,], aes(y=y, x=x)) +
+wind.list = lapply(sort(unique(wind_ras_data$date)), function(i) {
+  ggplot(data = wind_ras_data[wind_ras_data$date==i,], aes(y=y, x=x)) +
   geom_raster(aes(fill = wind), interpolate = T) +
   facet_wrap(~as.factor(date)) +
-  scale_fill_gradientn(colours = wind_pal(20)) +
+  scale_fill_gradientn(colours = wind_pal(100), limits = wind_limits) +
   theme_classic() +
   theme(axis.line=element_blank(),axis.text.x=element_blank(),
           axis.text.y=element_blank(),axis.ticks=element_blank(),
@@ -474,6 +451,38 @@ swell.list = lapply(sort(unique(wind_data$date)), function(i) {
   coord_sf(xlim = c(-121.45, -117.06), ylim = c(32.36, 34.75), expand = F)
 })
 
+
+```
+
+```{r}
+new.wind.list <- list()
+
+for(i in seq_along(wind.list)){
+  
+  new.wind.list[[i]] <- wind.list[[i]] +
+    geom_spoke(data = wind.arrows, aes(y=y, x=x, angle = angle, 
+                                     radius = scales::rescale(wind, c(.02, .15))), 
+             arrow=arrow(length = unit(0.2,"cm")))
+
+}
+
+swell.list[[1]]
+
+wind.arrows <- wind_angle %>% 
+    filter(longitude %in% sort(unique(longitude))[c(T, F, F, F, F, F, F, F, 
+                                    F, F, F, F, F, F, F, F, F)], 
+           latitude %in% sort(unique(latitude))[c(T, F, F, F, F, F, F, F, 
+                                    F, F, F, F, F, F, F, F, F)])
+
+test_wind <- wind.arrows %>% 
+  filter(date == "2022-04-29 12:00:00") %>% 
+  dplyr::select(!c("date"))
+
+a <- swell.list[[1]] 
+
+a +
+  geom_arrow(data = test_wind, aes(x=u, y=v))
+
 ```
 
 
@@ -482,10 +491,10 @@ w_dpi <- c(215)
 
 unlink("pngs/old/*")
 
-for(i in 1:length(swell.list)){
+for(i in 1:length(new.swell.list)){
   
-  ggsave(paste0(here('pngs', 'old'), "/", wind_data$date[i], '.png'), dpi = w_dpi, 
-         bg = "transparent", plot = swell.list[[i]])
+  ggsave(paste0(here('pngs', 'old'), "/", wind_ras_data$date[i], '.png'), dpi = w_dpi, 
+         bg = "transparent", plot = new.swell.list[[i]])
 }
 ```
 
@@ -493,10 +502,10 @@ for(i in 1:length(swell.list)){
 unlink("pngs/site_ready/*")
 
 for(i in 1:length(swell.list)){
-  hs <- image_read(paste0(here('pngs', 'old'), "/", wind_data$date[i], '.png'))
+  hs <- image_read(paste0(here('pngs', 'old'), "/", wind_ras_data$date[i], '.png'))
   hs <- image_trim(hs)
   hs <- image_transparent(hs, "white")
-  image_write(hs, paste0(here('pngs', 'site_ready'), "/", wind_data$date[i], '.png'))
+  image_write(hs, paste0(here('pngs', 'site_ready'), "/", wind_ras_data$date[i], '.png'))
 }
 
 ```
