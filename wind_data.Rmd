@@ -20,6 +20,8 @@ library(httr)
 library(ggquiver)
 library(gstat)
 library(automap)
+library(stars)
+library(magick)
 
 ```
 
@@ -67,19 +69,36 @@ wind_ras <- wind_data %>%
   mutate(wind = ((sqrt((u^2) + (v^2)))*1.94), 
          angle = rad2deg(atan2(u, v)),
          angle = ifelse(angle < 190, abs(angle)+180),
-         date = as_datetime(date),
-         date = as.factor(date)) %>%
+         date = parse_date_time(date, "Ymd HMS", tz = "America/Los_Angeles" ),
+         date = factor(date)) %>%
   dplyr::select(-c(u, v)) %>% 
   group_by(date) %>% 
   dplyr::select(!c("reftime", "angle")) %>% 
   rename(x = longitude) %>% 
   rename(y = latitude)%>% 
   dplyr::select(x, everything()) %>% 
-  relocate(wind, .before = date)
+  relocate(wind, .before = date) %>% 
+  ungroup()
+
+df <- wind_ras %>%
+ group_by(x, y, levels(date)) %>% 
+ summarize(wind = wind,
+           date = date,
+           x = x,
+          y =y)
+
+df <- wind_ras[order(levels(wind_ras$date)),]
+df$date_index <- 1:length(levels(df$date))
 
 
-test <- wind_ras %>% 
-  filter(date == "2022-04-26 12:00:00")
+a <- st_as_sf(wind_ras, coords=c('x','y'))
+
+b <- st_rasterize(a)
+
+
+
+wind_1 <- wind_ras %>% 
+  filter(date == )
 
 
 a <- rasterFromXYZ(test)
@@ -102,6 +121,273 @@ merged_shapes <- bind_rows(ca, islands)
 ```
 
 
+# manual brick
+```{r}
+wind_1 <- wind_ras %>% 
+  filter(date == unique(date)[[1]]) %>% 
+  rasterFromXYZ() %>% 
+  dropLayer(2)
+
+wind_2 <- wind_ras %>% 
+  filter(date == unique(date)[[2]]) %>% 
+  rasterFromXYZ() %>% 
+  dropLayer(2)
+
+wind_3 <- wind_ras %>% 
+  filter(date == unique(date)[[3]]) %>% 
+  rasterFromXYZ() %>% 
+  dropLayer(2)
+
+wind_4 <- wind_ras %>% 
+  filter(date == unique(date)[[4]]) %>% 
+  rasterFromXYZ() %>% 
+  dropLayer(2)
+
+wind_5 <- wind_ras %>% 
+  filter(date == unique(date)[[5]]) %>% 
+  rasterFromXYZ() %>% 
+  dropLayer(2)
+
+wind_6 <- wind_ras %>% 
+  filter(date == unique(date)[[6]]) %>% 
+  rasterFromXYZ() %>% 
+  dropLayer(2)
+
+wind_7 <- wind_ras %>% 
+  filter(date == unique(date)[[7]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_8 <- wind_ras %>% 
+  filter(date == unique(date)[[8]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_9 <- wind_ras %>% 
+  filter(date == unique(date)[[9]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_10 <- wind_ras %>% 
+  filter(date == unique(date)[[10]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_11 <- wind_ras %>% 
+  filter(date == unique(date)[[11]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_12 <- wind_ras %>% 
+  filter(date == unique(date)[[12]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_13 <- wind_ras %>% 
+  filter(date == unique(date)[[13]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_14 <- wind_ras %>% 
+  filter(date == unique(date)[[14]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_15 <- wind_ras %>% 
+  filter(date == unique(date)[[15]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_16 <- wind_ras %>% 
+  filter(date == unique(date)[[16]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_17 <- wind_ras %>% 
+  filter(date == unique(date)[[17]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_18 <- wind_ras %>% 
+  filter(date == unique(date)[[18]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_19 <- wind_ras %>% 
+  filter(date == unique(date)[[19]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_20 <- wind_ras %>% 
+  filter(date == unique(date)[[20]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+
+wind_21 <- wind_ras %>% 
+  filter(date == unique(date)[[21]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_22 <- wind_ras %>% 
+  filter(date == unique(date)[[22]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_23 <- wind_ras %>% 
+  filter(date == unique(date)[[23]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_24 <- wind_ras %>% 
+  filter(date == unique(date)[[24]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_25 <- wind_ras %>% 
+  filter(date == unique(date)[[25]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_26 <- wind_ras %>% 
+  filter(date == unique(date)[[26]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_27 <- wind_ras %>% 
+  filter(date == unique(date)[[27]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_28 <- wind_ras %>% 
+  filter(date == unique(date)[[28]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_29 <- wind_ras %>% 
+  filter(date == unique(date)[[29]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_30 <- wind_ras %>% 
+  filter(date == unique(date)[[30]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_31 <- wind_ras %>% 
+  filter(date == unique(date)[[31]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_32 <- wind_ras %>% 
+  filter(date == unique(date)[[32]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+
+wind_33 <- wind_ras %>% 
+  filter(date == unique(date)[[33]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_34 <- wind_ras %>% 
+  filter(date == unique(date)[[34]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_35 <- wind_ras %>% 
+  filter(date == unique(date)[[35]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_36 <- wind_ras %>% 
+  filter(date == unique(date)[[36]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_37 <- wind_ras %>% 
+  filter(date == unique(date)[[37]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_38 <- wind_ras %>% 
+  filter(date == unique(date)[[38]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_39 <- wind_ras %>% 
+  filter(date == unique(date)[[39]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_40 <- wind_ras %>% 
+  filter(date == unique(date)[[40]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_41 <- wind_ras %>% 
+  filter(date == unique(date)[[41]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_42 <- wind_ras %>% 
+  filter(date == unique(date)[[42]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_43 <- wind_ras %>% 
+  filter(date == unique(date)[[43]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_44 <- wind_ras %>% 
+  filter(date == unique(date)[[44]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_45 <- wind_ras %>% 
+  filter(date == unique(date)[[45]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_46 <- wind_ras %>% 
+  filter(date == unique(date)[[46]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_47 <- wind_ras %>% 
+  filter(date == unique(date)[[47]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+
+
+ras_brick <- brick(wind_1, wind_2, wind_3, wind_4, wind_5, wind_6, wind_7,
+                 wind_8,wind_9,wind_10,
+               wind_11, wind_12, wind_13, wind_14, wind_15, wind_16, wind_17, wind_18,
+               wind_19,wind_20,
+               wind_21, wind_22, wind_23, wind_24, wind_25, wind_26, wind_27,
+               wind_28,wind_29, wind_30, wind_31, wind_32, wind_33, wind_34, wind_35,
+               wind_36, wind_37,
+               wind_38, wind_39, wind_40, wind_41, wind_42, wind_43, wind_44, wind_45,
+               wind_46, wind_47)
+
+
+
+rm(wind_1, wind_2, wind_3, wind_4, wind_5, wind_6, wind_7,
+                 wind_8,wind_9,wind_10,
+               wind_11, wind_12, wind_13, wind_14, wind_15, wind_16, wind_17, wind_18,
+               wind_19,wind_20,
+               wind_21, wind_22, wind_23, wind_24, wind_25, wind_26, wind_27,
+               wind_28,wind_29, wind_30, wind_31, wind_32, wind_33, wind_34, wind_35,
+               wind_36, wind_37,
+               wind_38, wind_39, wind_40, wind_41, wind_42, wind_43, wind_44, wind_45,
+               wind_46, wind_47)
+gc()
+
+```
+
+
 ```{r}
 
 ras <- brick(xmn = -121.45,
@@ -110,12 +396,22 @@ ras <- brick(xmn = -121.45,
              ymx = 34.75)
 
 
-for(i in unique(wind_ras$date)) {
+
+
+for(i in 1:levels(wind_ras$date)) {
   
-  ras[[i]] <- rasterFromXYZ(wind_ras[wind_ras$date == unique(wind_ras$date)[i],])
+  date = unique(wind_ras$date)
+  
+  test <- wind_ras %>%
+    filter(date == date)
+  
+  ras[[i]]<- rasterFromXYZ(test)
+
 }
 
-plot(ras[[60]])
+
+fsplot(ras[[1]])
+
 
 wind_res <- c(0.005, 0.005) 
 
@@ -125,28 +421,86 @@ new_ras_wind <- raster(xmn = -121.4,
                       ymx = 34.75,
                       res = wind_res)
 
-re_samp_wind <- resample(a, new_ras_wind, method = "bilinear")
+re_samp_wind <- resample(ras_brick, new_ras_wind, method = "bilinear")
 
 cropped_wind <- mask(re_samp_wind, merged_shapes, inverse = T)
 
 final_ras_wind <- projectRaster(cropped_wind, crs = 4326)
 
-plot(final_ras_wind[[1]])
+plot(final_ras_wind)
 
 
 ```
 
+# points
+```{r}
+
+wind_data <- as.data.frame(rasterToPoints(final_ras_wind)) %>% 
+  pivot_longer(!c(x,y), names_to = "date", values_to = "wind")
+
+```
 
 # pal
 ```{r}
 
-cols <- c("grey60", "violet", "blue", "green", "orange", "red", "black")
+wind_pal <- colorRampPalette(c("grey60", "violet", "blue", "green", "orange", "red", "black"))
 
-pal <- palette(c("grey60", "violet", "blue", "green", "orange", "red", "black"))
+wind_limits <- 
 
-plot(pal(10))
+
 
 ```
+
+
+```{r}
+swell.list = lapply(sort(unique(wind_data$date)), function(i) {
+  ggplot(data = wind_data[wind_data$date==i,], aes(y=y, x=x)) +
+  geom_raster(aes(fill = wind), interpolate = T) +
+  facet_wrap(~as.factor(date)) +
+  scale_fill_gradientn(colours = wind_pal(20)) +
+  theme_classic() +
+  theme(axis.line=element_blank(),axis.text.x=element_blank(),
+          axis.text.y=element_blank(),axis.ticks=element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),legend.position="none",
+          panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.margin=unit(c(0,0,0,0), "null"),
+        strip.background = element_blank(),
+        strip.text.x = element_blank()) +
+  coord_sf(xlim = c(-121.45, -117.06), ylim = c(32.36, 34.75), expand = F)
+})
+
+```
+
+
+```{r}
+w_dpi <- c(215)
+
+unlink("pngs/old/*")
+
+for(i in 1:length(swell.list)){
+  
+  ggsave(paste0(here('pngs', 'old'), "/", wind_data$date[i], '.png'), dpi = w_dpi, 
+         bg = "transparent", plot = swell.list[[i]])
+}
+```
+
+```{r}
+unlink("pngs/site_ready/*")
+
+for(i in 1:length(swell.list)){
+  hs <- image_read(paste0(here('pngs', 'old'), "/", wind_data$date[i], '.png'))
+  hs <- image_trim(hs)
+  hs <- image_transparent(hs, "white")
+  image_write(hs, paste0(here('pngs', 'site_ready'), "/", wind_data$date[i], '.png'))
+}
+
+```
+
 
 ```{r}
 
