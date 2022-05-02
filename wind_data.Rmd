@@ -84,6 +84,8 @@ wind_ras <- wind_data %>%
   relocate(wind, .before = date) %>% 
   ungroup()
 
+date <-  unique(wind_ras$date)
+
 
 ```
 
@@ -107,6 +109,7 @@ merged_shapes <- bind_rows(ca, islands)
 wind_1 <- wind_ras %>% 
   filter(date == unique(date)[[1]]) %>% 
   rasterFromXYZ() %>% 
+  
   dropLayer(2)
 
 wind_2 <- wind_ras %>% 
@@ -341,6 +344,36 @@ wind_47 <- wind_ras %>%
   rasterFromXYZ()%>% 
   dropLayer(2)
 
+wind_48 <- wind_ras %>% 
+  filter(date == unique(date)[[48]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_49 <- wind_ras %>% 
+  filter(date == unique(date)[[49]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_50 <- wind_ras %>% 
+  filter(date == unique(date)[[50]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_51 <- wind_ras %>% 
+  filter(date == unique(date)[[51]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_52 <- wind_ras %>% 
+  filter(date == unique(date)[[53]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
+wind_53 <- wind_ras %>% 
+  filter(date == unique(date)[[53]]) %>% 
+  rasterFromXYZ()%>% 
+  dropLayer(2)
+
 
 
 ras_brick <- brick(wind_1, wind_2, wind_3, wind_4, wind_5, wind_6, wind_7,
@@ -351,7 +384,9 @@ ras_brick <- brick(wind_1, wind_2, wind_3, wind_4, wind_5, wind_6, wind_7,
                wind_28,wind_29, wind_30, wind_31, wind_32, wind_33, wind_34, wind_35,
                wind_36, wind_37,
                wind_38, wind_39, wind_40, wind_41, wind_42, wind_43, wind_44, wind_45,
-               wind_46, wind_47)
+               wind_46, wind_47, wind_48, wind_49, wind_50, wind_51, wind_52, wind_53)
+
+names(ras_brick) <-  date
 
 
 
@@ -415,16 +450,17 @@ final_ras_wind <- projectRaster(cropped_wind, crs = 4326)
 wind_ras_data <- as.data.frame(rasterToPoints(final_ras_wind)) %>% 
   pivot_longer(!c(x,y), names_to = "date", values_to = "wind")
 
+
 ```
 
 # pal
 ```{r}
 
-wind_pal <- colorRampPalette(c("#606fb4", "#6070b4", "#3c6c9f", "#4788a6", "#488e9b", "#4d8d7b", "#4da048", "#55a042", "#749c38", "#9f7b49", "#9c655b", "#8d455b", "#8e436f", "#95498c", "#6d5d9a"))
+wind_pal <- colorRampPalette(c( "#5f6fb3", "#498f9e", "#4a8b6c","goldenrod2", "#93525a", "#944988", "firebrick4" ))
 
-wind_limits <- c(0,60)
+wind_limits <- c(0,50)
 
-
+wind_values <- c(0, 10, 20, 30, 40, 50)
 
 ```
 
@@ -434,12 +470,12 @@ wind.list = lapply(sort(unique(wind_ras_data$date)), function(i) {
   ggplot(data = wind_ras_data[wind_ras_data$date==i,], aes(y=y, x=x)) +
   geom_raster(aes(fill = wind), interpolate = T) +
   facet_wrap(~as.factor(date)) +
-  scale_fill_gradientn(colours = wind_pal(100), limits = wind_limits) +
+  scale_fill_gradientn(colours = wind_pal(100), limits = wind_limits, breaks = wind_values) +
   theme_classic() +
   theme(axis.line=element_blank(),axis.text.x=element_blank(),
           axis.text.y=element_blank(),axis.ticks=element_blank(),
           axis.title.x=element_blank(),
-          axis.title.y=element_blank(),legend.position="none",
+          axis.title.y=element_blank(),
           panel.background=element_blank(),
         panel.border=element_blank(),
         panel.grid.major=element_blank(),
@@ -451,6 +487,7 @@ wind.list = lapply(sort(unique(wind_ras_data$date)), function(i) {
   coord_sf(xlim = c(-121.45, -117.06), ylim = c(32.36, 34.75), expand = F)
 })
 
+wind.list[[1]]
 
 ```
 
@@ -491,17 +528,17 @@ w_dpi <- c(215)
 
 unlink("pngs/old/*")
 
-for(i in 1:length(new.swell.list)){
+for(i in 1:length(wind.list)){
   
   ggsave(paste0(here('pngs', 'old'), "/", wind_ras_data$date[i], '.png'), dpi = w_dpi, 
-         bg = "transparent", plot = new.swell.list[[i]])
+         bg = "transparent", plot = wind.list[[i]])
 }
 ```
 
 ```{r}
 unlink("pngs/site_ready/*")
 
-for(i in 1:length(swell.list)){
+for(i in 1:length(wind.list)){
   hs <- image_read(paste0(here('pngs', 'old'), "/", wind_ras_data$date[i], '.png'))
   hs <- image_trim(hs)
   hs <- image_transparent(hs, "white")
