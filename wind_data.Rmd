@@ -185,7 +185,7 @@ wind_ras_data <- as.data.frame(rasterToPoints(final_ras_wind)) %>%
 # pal
 ```{r}
 
-wind_pal <- colorRampPalette(c( "#5f6fb3", "#498f9e", "#25cc35","goldenrod2", "#93525a", "#944988", "firebrick4" ))
+wind_pal <- colorRampPalette(c( "#7343a4", "#4359a4", "#528c9f","#589e52", "#a39852", "#a0714c", "#864751", "#a54c7a" ))
 
 wind_limits <- c(0,50)
 
@@ -216,7 +216,7 @@ wind.list = lapply(sort(unique(wind_ras_data$date)), function(i) {
   coord_sf(xlim = c(-121.45, -117.06), ylim = c(32.36, 34.75), expand = F)
 })
 
-
+wind.list[[1]]
 
 ```
 
