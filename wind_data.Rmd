@@ -11,23 +11,18 @@ knitr::opts_chunk$set(echo = TRUE)
 library(here)
 library(tidyverse)
 library(raster)
-library(REdaS)
 library(sf)
 library(lubridate)
-library(terra)
-library(jsonlite)
-library(httr)
 library(ggquiver)
-library(gstat)
-library(automap)
-library(stars)
 library(magick)
 library(metR)
+library(rCAT)
+library(circular)
 
 ```
 
 
-# download u and v component of wind
+# download NAM u and v component of wind
 ```{r}
 
 url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=500000&variables=u-component_of_wind_planetary_boundary")
@@ -48,48 +43,65 @@ wind_v <- here("data", "wind_v.csv") %>%
   read_csv()
 
 ```
+# download NAM u and v component of wind
+```{r}
+url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_gfs_pgrb2_global_forecast_recompute_0.25degree/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=500000&variables=u-component_of_wind_planetary_boundary")
+
+wind_u <- download.file(url_ucomp, here("data", "wind_u.csv"))
+
+wind_u <- here("data", "wind_u.csv") %>% 
+  read_csv()
+
+```
+
 
 # convert u and v
 ```{r}
 
-wind_data <- left_join(wind_u, wind_v, by = c("axis:latitude", "axis:longitude"))
+  wind_data <- left_join(wind_u, wind_v, by = c("axis:latitude", "axis:longitude"))
+  
+  wind_data <- wind_data %>% 
+    as.data.frame() %>% 
+    dplyr::select(!c("axis:time.y", "axis:reftime.y")) 
+  
+  names(wind_data) <- substring(names(wind_data), 6)
+  
+ wind_data$time.x <- as_datetime(wind_data$time.x)
+ arrange(wind_data, desc(time.x))
 
-wind_data <- wind_data %>% 
-  as.data.frame() %>% 
-  dplyr::select(!c("axis:time.y", "axis:reftime.y")) 
+ dates_string <- paste(c("12:00:00", "15:00:00", "18:00:00", "21:00:00", "03:00:00", "06:00:00", "09:00:00"), collapse = "|")
+   
+  wind_data_dates <- wind_data %>% 
+    dplyr::select(!c(reftime.x)) %>% 
+    rename(date = time.x) %>% 
+    mutate(date = parse_date_time(date, "Ymd HMS", tz = "America/Los_Angeles" )) %>% 
+    rename(u = `u-component_of_wind_planetary_boundary`) %>% 
+    rename(v = `v-component_of_wind_planetary_boundary`) %>% 
+    mutate(date = as.character(date)) %>% 
+  filter(str_detect(date, paste(dates_string))) %>% 
+  rename(x = longitude) %>% 
+  rename(y = latitude)
 
-names(wind_data) <- substring(names(wind_data), 6)
 
-wind_data <- wind_data %>% 
-  rename(reftime = reftime.x) %>% 
-  rename(date = time.x) %>% 
-  rename(u = `u-component_of_wind_planetary_boundary`) %>% 
-  rename(v = `v-component_of_wind_planetary_boundary`)
-
-# wind_angle <- wind_data %>% 
-#   dplyr::select(c("longitude", "latitude", "u", "v", "date"))
-
-wind_ras <- wind_data %>%
-  mutate(wind = ((sqrt((u^2) + (v^2)))*1.94), 
-         angle = rad2deg(atan2(v, u)),
-         angle = ifelse(angle < 0, abs(angle)+180, angle),
-         date = parse_date_time(date, "Ymd HMS", tz = "America/Los_Angeles" ),
+wind_ras <- wind_data_dates %>%
+  mutate(wind = ((sqrt((u^2) + (v^2)))),
+         angle = atan2(u/wind, v/wind),
+         angle = (angle * 180/pi),
          date = as.factor(date)) %>%
   dplyr::select(-c(u, v)) %>% 
-  dplyr::select(!c("reftime")) %>% 
-  rename(x = longitude) %>% 
-  rename(y = latitude)%>% 
   dplyr::select(x, everything()) %>% 
-  relocate(wind, .before = date)
+  relocate(wind, .before = date) %>% 
+  mutate(wind = wind*1.94)
 
 wind_angle <- wind_ras %>%
   dplyr::select(c("x", "y", "angle", "date", "wind")) %>% 
   group_by(x, y, date) %>% 
-  summarize(angle = mean(angle),
+  summarize(angle = mean(circular(angle, type = "angles",units = "degrees", template = "clock24", rotation = "clock")),
          wind = mean(wind),
          x =x,
          y=y,
-         date = date)
+         date = date) %>% 
+  mutate(angle = angle + 180)
 
 wind_ras <- wind_ras %>% 
   dplyr::select(!c(angle))
@@ -97,6 +109,9 @@ wind_ras <- wind_ras %>%
 date <-  unique(wind_ras$date)
 
 
+
+rm(wind_date, wind_data_dates)
+gc()
 ```
 
 
@@ -154,7 +169,8 @@ cropped_wind <- mask(re_samp_wind, merged_shapes, inverse = T)
 
 final_ras_wind <- projectRaster(cropped_wind, crs = 4326)
 
-
+rm(new_ras_wind, re_samp_wind, cropped_wind)
+gc()
 ```
 
 # points
