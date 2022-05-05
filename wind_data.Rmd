@@ -43,16 +43,6 @@ wind_v <- here("data", "wind_v.csv") %>%
   read_csv()
 
 ```
-# download NAM u and v component of wind
-```{r}
-url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_gfs_pgrb2_global_forecast_recompute_0.25degree/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=500000&variables=u-component_of_wind_planetary_boundary")
-
-wind_u <- download.file(url_ucomp, here("data", "wind_u.csv"))
-
-wind_u <- here("data", "wind_u.csv") %>% 
-  read_csv()
-
-```
 
 
 # convert u and v
@@ -68,8 +58,25 @@ wind_u <- here("data", "wind_u.csv") %>%
   
  wind_data$time.x <- as_datetime(wind_data$time.x)
  arrange(wind_data, desc(time.x))
+ 
+day <- as.character(Sys.Date()) %>% 
+  substring(8)
 
- dates_string <- paste(c("12:00:00", "15:00:00", "18:00:00", "21:00:00", "03:00:00", "06:00:00", "09:00:00"), collapse = "|")
+plus1_day <- as.character(Sys.Date()+1) %>% 
+  substring(8)
+
+plus2_day <- as.character(Sys.Date()+2) %>% 
+  substring(8)
+
+
+ dates_string <- paste(c(paste(day, "03:00:00"),paste(day, "06:00:00"),paste(day, "09:00:00"),
+                         paste(day, "12:00:00"),paste(day, "15:00:00"),paste(day, "18:00:00"),
+                         paste(day, "21:00:00"),paste(plus1_day, "03:00:00"), paste(plus1_day, "06:00:00"), 
+                         paste(plus1_day, "09:00:00"), paste(plus1_day, "12:00:00"),paste(plus1_day, "15:00:00"),
+                         paste(plus1_day, "18:00:00"),paste(plus1_day, "21:00:00"),paste(plus2_day, "03:00:00"), 
+                         paste(plus2_day, "06:00:00"),paste(plus2_day, "09:00:00"), paste(plus2_day, "12:00:00"),
+                         paste(plus2_day, "15:00:00"),paste(plus2_day, "18:00:00"),paste(plus2_day, "21:00:00")))
+
    
   wind_data_dates <- wind_data %>% 
     dplyr::select(!c(reftime.x)) %>% 
@@ -185,7 +192,7 @@ wind_ras_data <- as.data.frame(rasterToPoints(final_ras_wind)) %>%
 # pal
 ```{r}
 
-wind_pal <- colorRampPalette(c( "#7343a4", "#4359a4", "#528c9f","#589e52", "#a39852", "#a0714c", "#864751", "#a54c7a" ))
+wind_pal <- colorRampPalette(c( "#7635b8", "#3a57ba", "#4999b3","#5bc752", "#c9b84d", "#cc8247", "#ab3c4d", "#bf4182" ))
 
 wind_limits <- c(0,50)
 
