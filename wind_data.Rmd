@@ -71,11 +71,11 @@ plus2_day <- as.character(Sys.Date()+2) %>%
 
  dates_string <- paste(c(paste(day, "03:00:00"),paste(day, "06:00:00"),paste(day, "09:00:00"),
                          paste(day, "12:00:00"),paste(day, "15:00:00"),paste(day, "18:00:00"),
-                         paste(day, "21:00:00"),paste(plus1_day, "03:00:00"), paste(plus1_day, "06:00:00"), 
+                         paste(day, "21:00:00"),paste(plus1_day, "03:00:00"), paste(plus1_day, "06:00:00"),
                          paste(plus1_day, "09:00:00"), paste(plus1_day, "12:00:00"),paste(plus1_day, "15:00:00"),
-                         paste(plus1_day, "18:00:00"),paste(plus1_day, "21:00:00"),paste(plus2_day, "03:00:00"), 
+                         paste(plus1_day, "18:00:00"),paste(plus1_day, "21:00:00"),paste(plus2_day, "03:00:00"),
                          paste(plus2_day, "06:00:00"),paste(plus2_day, "09:00:00"), paste(plus2_day, "12:00:00"),
-                         paste(plus2_day, "15:00:00"),paste(plus2_day, "18:00:00"),paste(plus2_day, "21:00:00")))
+                         paste(plus2_day, "15:00:00"),paste(plus2_day, "18:00:00"),paste(plus2_day, "21:00:00")), collapse = "|")
 
    
   wind_data_dates <- wind_data %>% 
@@ -157,6 +157,8 @@ for(i in 1:length(levels(wind_ras$date))) {
 
 names(ras) <-  date
 
+plot(ras[[1]])
+
 ```
 
 # resample 
@@ -223,39 +225,39 @@ wind.list = lapply(sort(unique(wind_ras_data$date)), function(i) {
   coord_sf(xlim = c(-121.45, -117.06), ylim = c(32.36, 34.75), expand = F)
 })
 
-wind.list[[1]]
+wind.list[[2]]
 
 ```
 
 ```{r}
-new.wind.list <- list()
-
-for(i in seq_along(wind.list)){
-  
-  new.wind.list[[i]] <- wind.list[[i]] +
-    geom_spoke(data = wind.arrows, aes(y=y, x=x, angle = angle, 
-                                     radius = scales::rescale(wind, c(.02, .15))), 
-             arrow=arrow(length = unit(0.2,"cm")))
-
-}
-
-swell.list[[1]]
-
-wind.arrows <- wind_angle %>% 
-  ungroup() %>% 
-    slice(which(row_number() %% 500 ==1))
-
-test_wind <- wind.arrows %>% 
-  ungroup() %>% 
-  filter(date == date[[1]]) %>% 
-  dplyr::select(!c("date"))
-
-a <- wind.list[[1]] 
-
-
-a +
-  geom_spoke(data = test_wind, aes( x = x, y = y, angle = angle, 
-           radius = scales::rescale(wind, c(.02, .15))), arrow = arrow(length = unit(.2, 'cm')))
+# new.wind.list <- list()
+# 
+# for(i in seq_along(wind.list)){
+#   
+#   new.wind.list[[i]] <- wind.list[[i]] +
+#     geom_spoke(data = wind.arrows, aes(y=y, x=x, angle = angle, 
+#                                      radius = scales::rescale(wind, c(.02, .15))), 
+#              arrow=arrow(length = unit(0.2,"cm")))
+# 
+# }
+# 
+# swell.list[[1]]
+# 
+# wind.arrows <- wind_angle %>% 
+#   ungroup() %>% 
+#     slice(which(row_number() %% 500 ==1))
+# 
+# test_wind <- wind.arrows %>% 
+#   ungroup() %>% 
+#   filter(date == date[[1]]) %>% 
+#   dplyr::select(!c("date"))
+# 
+# a <- wind.list[[1]] 
+# 
+# 
+# a +
+#   geom_spoke(data = test_wind, aes( x = x, y = y, angle = angle, 
+#            radius = scales::rescale(wind, c(.02, .15))), arrow = arrow(length = unit(.2, 'cm')))
 
 ```
 
@@ -282,34 +284,5 @@ for(i in 1:length(wind.list)){
   image_write(hs, paste0(here('pngs', 'site_ready'), "/", wind_ras_data$date[i], '.png'))
 }
 
-```
-
-
-```{r}
-
-wind_ras <- wind_ras %>% 
-  filter(date == "2022-04-26 12:00:00")
-
-wind_data <- wind_data %>% 
-  filter(date == "2022-04-12 12:00:00")
-
-wind_ras_t <- wind_ras %>% 
-    filter(longitude %in% sort(unique(longitude))[c(T, F, F, F, F, F, F, F, 
-                                    F, F, F, F, F, F, F, F, F)], 
-           latitude %in% sort(unique(latitude))[c(T, F, F, F, F, F, F, F, 
-                                    F, F, F, F, F, F, F, F, F)])
-
-ggplot() +
-  geom_raster(a, interpolate = T) 
-
-+
-  geom_spoke(data = wind_ras_t, aes(y=latitude, x=longitude, angle = angle, 
-                                           radius = scales::rescale(wind, c(.02, .15))), 
-               arrow=arrow(length = unit(0.2,"cm"))) +
-  theme_classic() +
-  scale_fill_viridis_c(option = "turbo")
-  
-  +
-  geom_sf(data = cha, color = "black", fill = "grey60")
 ```
 
