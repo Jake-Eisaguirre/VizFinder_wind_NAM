@@ -18,29 +18,70 @@ library(magick)
 library(metR)
 library(rCAT)
 library(circular)
+library(rNOMADS)
 
+
+```
+
+```{r}
+a <- NOMADSRealTimeList("grib")
 ```
 
 
 # download NAM u and v component of wind
 ```{r}
 
-url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=500000&variables=u-component_of_wind_planetary_boundary")
+# url_ucomp <- ("http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=500000&variables=u-component_of_wind_planetary_boundary")
 
-wind_u <- download.file(url_ucomp, here("data", "wind_u.csv"))
+date <- as_date(Sys.Date())
 
-wind_u <- here("data", "wind_u.csv") %>% 
-  read_csv()
+mod.list <- c("00", "03", "06", "09", "12", "15", "18", "21", "24", "27", 
+              "30", "33", "36", "39", "42", "45", "48", "51", "54", "57", "60", 
+              "63", "66", "69", "72", "75", "78", "81", "84")
+
+gribstring <- "wind_u_%s.grb"
+wind.u <- vector("list", length(mod.list))
+
+unlink(here("grib_u/*"))
+for(i in seq_along(mod.list)) {
+  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam_na.pl?file=nam.t00z.awip32" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground=on&var_UGRD=on&leftlon=0&rightlon=360&toplat=90&bottomlat=-90&dir=%2Fnam.20220511")
+  gribfile <- sprintf(gribstring, mod.list[i])
+  download.file(url_ucomp, here("grib_u", gribfile))
+  
+}
+
+wind_u_brick <- stack(here("grib_u", list.files(path = here("grib_u"), pattern = "*.grb")))
+
+wind_u_csv <- rasterToPoints(wind_u_brick) %>% 
+  as.data.frame() %>% 
+  pivot_longer(!c(x,y), names_to = "date", values_to = "u")
 
 
+unlink(here("grib_v/*"))
+for(i in seq_along(mod.list)) {
+  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam_na.pl?file=nam.t00z.awip32" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground=on&var_VGRD=on&leftlon=0&rightlon=360&toplat=90&bottomlat=-90&dir=%2Fnam.20220511")
+  gribfile <- sprintf(gribstring, mod.list[i])
+  download.file(url_ucomp, here("grib_v", gribfile))
+  
+}
+
+url_ucomp_00 <- ("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam_na.pl?file=nam.t00z.awip3200.tm00.grib2&lev_10_m_above_ground=on&var_UGRD=on&leftlon=0&rightlon=360&toplat=90&bottomlat=-90&dir=%2Fnam.20220511")
 
 
-url_vcomp <- "http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=500000&variables=v-component_of_wind_planetary_boundary"
+wind_v_brick <- stack(here("grib_v", list.files(path = here("grib_v"), pattern = "*.grb")))
 
-download.file(url_vcomp, here("data", "wind_v.csv"))
+wind_v_csv <- rasterToPoints(wind_v_brick) %>% 
+  as.data.frame() %>% 
+  pivot_longer(!c(x,y), names_to = "date", values_to = "v")
 
-wind_v <- here("data", "wind_v.csv") %>% 
-  read_csv()
+plot(wind_u_brick)
+
+# url_vcomp <- "http://api.planetos.com/v1/datasets/noaa_nam_awips_12/area?polygon=[[-121.40,34.75],[-117.06,34.75],[-117.06,32.36],[-121.40,32.36],[-121.40,34.75]]&apikey=e5102ee5d77e422eaa5dea4124ba2165&csv=true&count=500000&variables=v-component_of_wind_planetary_boundary"
+# 
+# download.file(url_vcomp, here("data", "wind_v.csv"))
+# 
+# wind_v <- here("data", "wind_v.csv") %>% 
+#   read_csv()
 
 ```
 
@@ -48,49 +89,46 @@ wind_v <- here("data", "wind_v.csv") %>%
 # convert u and v
 ```{r}
 
-  wind_data <- left_join(wind_u, wind_v, by = c("axis:latitude", "axis:longitude"))
+  wind_data <- left_join(wind_u_csv, wind_v_csv, by = c("x", "y")) %>% 
+  dplyr::select(!c("date.y")) %>% 
+    rename(date = date.x) 
   
-  wind_data <- wind_data %>% 
-    as.data.frame() %>% 
-    dplyr::select(!c("axis:time.y", "axis:reftime.y")) 
   
-  names(wind_data) <- substring(names(wind_data), 6)
-  
- wind_data$time.x <- as_datetime(wind_data$time.x)
- arrange(wind_data, desc(time.x))
- 
-day <- as.character(Sys.Date()) %>% 
-  substring(8)
-
-plus1_day <- as.character(Sys.Date()+1) %>% 
-  substring(8)
-
-plus2_day <- as.character(Sys.Date()+2) %>% 
-  substring(8)
-
-
- dates_string <- paste(c(paste(day, "03:00:00"),paste(day, "06:00:00"),paste(day, "09:00:00"),
-                         paste(day, "12:00:00"),paste(day, "15:00:00"),paste(day, "18:00:00"),
-                         paste(day, "21:00:00"),paste(plus1_day, "03:00:00"), paste(plus1_day, "06:00:00"),
-                         paste(plus1_day, "09:00:00"), paste(plus1_day, "12:00:00"),paste(plus1_day, "15:00:00"),
-                         paste(plus1_day, "18:00:00"),paste(plus1_day, "21:00:00"),paste(plus2_day, "03:00:00"),
-                         paste(plus2_day, "06:00:00"),paste(plus2_day, "09:00:00"), paste(plus2_day, "12:00:00"),
-                         paste(plus2_day, "15:00:00"),paste(plus2_day, "18:00:00"),paste(plus2_day, "21:00:00")), collapse = "|")
+#  wind_data$time.x <- as_datetime(wind_data$time.x)
+#  arrange(wind_data, desc(time.x))
+#  
+# day <- as.character(Sys.Date()) %>% 
+#   substring(8)
+# 
+# plus1_day <- as.character(Sys.Date()+1) %>% 
+#   substring(8)
+# 
+# plus2_day <- as.character(Sys.Date()+2) %>% 
+#   substring(8)
+# 
+# 
+#  dates_string <- paste(c(paste(day, "03:00:00"),paste(day, "06:00:00"),paste(day, "09:00:00"),
+#                          paste(day, "12:00:00"),paste(day, "15:00:00"),paste(day, "18:00:00"),
+#                          paste(day, "21:00:00"),paste(plus1_day, "03:00:00"), paste(plus1_day, "06:00:00"),
+#                          paste(plus1_day, "09:00:00"), paste(plus1_day, "12:00:00"),paste(plus1_day, "15:00:00"),
+#                          paste(plus1_day, "18:00:00"),paste(plus1_day, "21:00:00"),paste(plus2_day, "03:00:00"),
+#                          paste(plus2_day, "06:00:00"),paste(plus2_day, "09:00:00"), paste(plus2_day, "12:00:00"),
+#                          paste(plus2_day, "15:00:00"),paste(plus2_day, "18:00:00"),paste(plus2_day, "21:00:00")), collapse = "|")
 
    
-  wind_data_dates <- wind_data %>% 
-    dplyr::select(!c(reftime.x)) %>% 
-    rename(date = time.x) %>% 
-    mutate(date = parse_date_time(date, "Ymd HMS", tz = "America/Los_Angeles" )) %>% 
-    rename(u = `u-component_of_wind_planetary_boundary`) %>% 
-    rename(v = `v-component_of_wind_planetary_boundary`) %>% 
-    mutate(date = as.character(date)) %>% 
-  filter(str_detect(date, paste(dates_string))) %>% 
-  rename(x = longitude) %>% 
-  rename(y = latitude)
+  # wind_data_dates <- wind_data %>% 
+  #   dplyr::select(!c(reftime.x)) %>% 
+  #   rename(date = time.x) %>% 
+  #   mutate(date = parse_date_time(date, "Ymd HMS", tz = "America/Los_Angeles" )) %>% 
+  #   rename(u = `u-component_of_wind_planetary_boundary`) %>% 
+  #   rename(v = `v-component_of_wind_planetary_boundary`) %>% 
+  #   mutate(date = as.character(date)) %>% 
+  # filter(str_detect(date, paste(dates_string))) %>% 
+  # rename(x = longitude) %>% 
+  # rename(y = latitude)
 
 
-wind_ras <- wind_data_dates %>%
+wind_ras <- wind_data %>%
   mutate(wind = ((sqrt((u^2) + (v^2)))),
          angle = atan2(u/wind, v/wind),
          angle = (angle * 180/pi),
