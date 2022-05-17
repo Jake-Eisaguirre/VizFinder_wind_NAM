@@ -24,38 +24,38 @@ library(rNOMADS)
 ```
 
 ```{r}
-url <- "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t18z.wcoast.0p16.f000.grib2&lev_surface=on&var_DIRPW=on&var_HTSGW=on&var_PERPW=on&var_WIND=on&subregion=&leftlon=239.52&rightlon=240.35&toplat=34.26&bottomlat=33.68&dir=%2Fgfs.20220516%2F18%2Fwave%2Fgridded"
-
-download.file(url, here("wave.grb"))
-
-test <- here("wave.grb") %>% 
-  raster() %>% 
-  rasterToPoints() %>% 
-  as.data.frame()
-
-write_csv(test, here("wave.csv"))
-
-plot(test)
+# url <- "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t18z.wcoast.0p16.f000.grib2&lev_surface=on&var_DIRPW=on&var_HTSGW=on&var_PERPW=on&var_WIND=on&subregion=&leftlon=239.52&rightlon=240.35&toplat=34.26&bottomlat=33.68&dir=%2Fgfs.20220516%2F18%2Fwave%2Fgridded"
+# 
+# download.file(url, here("wave.grb"))
+# 
+# test <- here("wave.grb") %>% 
+#   brick() %>% 
+#   rasterToPoints() %>% 
+#   as.data.frame()
+# 
+# write_csv(test, here("wave.csv"))
+# 
+# plot(test)
 ```
 
 
 # download NAM u and v component of wind
 ```{r}
 
-crop_ras <- raster(xmn = -121.404,
-             xmx = -117.064,
-             ymn = 32.36,
-             ymx = 34.75)
-
-date <- as_date(Sys.Date()) %>% 
+date <- as_date(Sys.Date(), tz="America/Los_Angeles") %>% 
   str_replace("-","") %>% 
   str_replace("-","")
 
-mod_time  <- hour(Sys.time()) -2
+mod_time  <- as.character(Sys.time()) %>% 
+  substring(12)
 
-mod.list <- c("03", "06", "09", "12", "15", "18", "21", "27", 
-              "30", "33", "36", "39", "42", "45", "51", "54", "57", "60", 
-              "63", "66", "69", "75", "78", "81", "84")
+mod_time <-  str_sub(mod_time, 1, nchar(mod_time) -6)
+
+#mod_time <- "06"  
+
+mod.list <- c("00", "03", "06", "09", "12", "15", "18", "21", "24", "27", 
+              "30", "33", "36", "39", "42", "45", "48", "51", "54", "57", "60", 
+              "63", "66", "69", "72", "75", "78", "81", "84")
 
 gribstring <- "wind_u_%s.grb"
 wind.u <- vector("list", length(mod.list))
@@ -63,15 +63,17 @@ wind.u <- vector("list", length(mod.list))
 #U Vector
 unlink(here("grib_u/*"))
 for(i in seq_along(mod.list)) {
-  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam.pl?file=nam.t00z.awphys" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground=on&var_UGRD=on&subregion=&leftlon=0&rightlon=360&toplat=90&bottomlat=-90&dir=%2Fnam.", date)
+  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam.pl?file=nam.t", mod_time, "z.awphys" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground&var_UGRD=on&subregion=&leftlon=238.596&rightlon=242.936&toplat=35.00&bottomlat=32.36&dir=%2Fnam.", date)
+  
   gribfile <- sprintf(gribstring, mod.list[i])
+  
   download.file(url_ucomp, here("grib_u", gribfile))
   
 }
 
 wind_u_brick <- stack(here("grib_u", list.files(path = here("grib_u"), pattern = "*.grb"))) %>% 
-  projectRaster(crs = 4326) %>% 
-  crop(crop_ras)
+  projectRaster(crs = 4326)
+
 
 wind_u_csv <- rasterToPoints(wind_u_brick) %>% 
   as.data.frame() %>% 
@@ -81,15 +83,19 @@ wind_u_csv <- rasterToPoints(wind_u_brick) %>%
 # V vector
 unlink(here("grib_v/*"))
 for(i in seq_along(mod.list)) {
-  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam.pl?file=nam.t00z.awphys" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground=on&var_VGRD=on&subregion=&leftlon=0&rightlon=360&toplat=90&bottomlat=-90&dir=%2Fnam.", date)
+  
+  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam.pl?file=nam.t", mod_time, "z.awphys" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground=on&var_VGRD=on&subregion=&leftlon=238.596&rightlon=242.936&toplat=35.00&bottomlat=32.36&dir=%2Fnam.", date)
+  
   gribfile <- sprintf(gribstring, mod.list[i])
+  
   download.file(url_ucomp, here("grib_v", gribfile))
   
 }
 
+
 wind_v_brick <- stack(here("grib_v", list.files(path = here("grib_v"), pattern = "*.grb"))) %>% 
-  projectRaster(crs = 4326) %>% 
-  crop(crop_ras)
+  projectRaster(crs = 4326) 
+
   
 
 wind_v_csv <- rasterToPoints(wind_v_brick) %>% 
@@ -140,6 +146,19 @@ rm(wind_date, wind_data_dates)
 gc()
 ```
 
+```{r}
+
+model_d <- as_datetime(Sys.time(), tz="America/Los_Angeles") %>% 
+  as.character()
+
+model_dates <-  str_sub(model_d, 1, nchar(mod_time) -9)
+
+
+
+  
+
+```
+
 
 # Shape Files
 ```{r}
@@ -159,13 +178,17 @@ merged_shapes <- bind_rows(ca, islands)
 # loop
 ```{r message=F, warning=F}
 
+# test <- wind_ras %>% 
+#     filter(date == levels(date)[1]) %>% 
+#     rasterFromXYZ() %>% 
+#     dropLayer(2)
 
-ras <- brick(xmn = -121.4329,
-             xmx = -117.1239,
-             ymn = 32.3719,
-             ymx = 34.7869,
-             nrows = 23,
-             ncol = 31)
+ras <- brick(xmn = -122.0514,
+             xmx = -116.6754,
+             ymn = 31.7689,
+             ymx = 35.6209,
+             nrows = 36,
+             ncol = 42)
 
 for(i in 1:length(levels(wind_ras$date))) {
 
@@ -244,7 +267,7 @@ wind.list = lapply(sort(unique(wind_ras_data$date)), function(i) {
   coord_sf(xlim = c(-121.45, -117.06), ylim = c(32.36, 34.75), expand = F)
 })
 
-wind.list[[10]]
+wind.list[[5]]
 
 ```
 
@@ -282,6 +305,11 @@ a +
 
 
 ```{r}
+
+string <- paste0("hours_since_ModRun(", mod_time ,"):")
+
+wind_ras_data$date <- sub("X", string, wind_ras_data$date)
+
 w_dpi <- c(215)
 
 unlink("pngs/old/*")
