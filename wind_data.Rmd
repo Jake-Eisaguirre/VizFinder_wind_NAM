@@ -23,6 +23,20 @@ library(rNOMADS)
 
 ```
 
+```{r}
+url <- "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t18z.wcoast.0p16.f000.grib2&lev_surface=on&var_DIRPW=on&var_HTSGW=on&var_PERPW=on&var_WIND=on&subregion=&leftlon=239.52&rightlon=240.35&toplat=34.26&bottomlat=33.68&dir=%2Fgfs.20220516%2F18%2Fwave%2Fgridded"
+
+download.file(url, here("wave.grb"))
+
+test <- here("wave.grb") %>% 
+  raster() %>% 
+  rasterToPoints() %>% 
+  as.data.frame()
+
+write_csv(test, here("wave.csv"))
+
+plot(test)
+```
 
 
 # download NAM u and v component of wind
@@ -33,9 +47,13 @@ crop_ras <- raster(xmn = -121.404,
              ymn = 32.36,
              ymx = 34.75)
 
-date <- as_date(Sys.Date())
+date <- as_date(Sys.Date()) %>% 
+  str_replace("-","") %>% 
+  str_replace("-","")
 
-mod.list <- c("00", "03", "06", "09", "12", "15", "18", "21", "27", 
+mod_time  <- hour(Sys.time()) -2
+
+mod.list <- c("03", "06", "09", "12", "15", "18", "21", "27", 
               "30", "33", "36", "39", "42", "45", "51", "54", "57", "60", 
               "63", "66", "69", "75", "78", "81", "84")
 
@@ -45,7 +63,7 @@ wind.u <- vector("list", length(mod.list))
 #U Vector
 unlink(here("grib_u/*"))
 for(i in seq_along(mod.list)) {
-  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam.pl?file=nam.t00z.awphys" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground=on&var_UGRD=on&subregion=&leftlon=0&rightlon=360&toplat=90&bottomlat=-90&dir=%2Fnam.20220512")
+  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam.pl?file=nam.t00z.awphys" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground=on&var_UGRD=on&subregion=&leftlon=0&rightlon=360&toplat=90&bottomlat=-90&dir=%2Fnam.", date)
   gribfile <- sprintf(gribstring, mod.list[i])
   download.file(url_ucomp, here("grib_u", gribfile))
   
@@ -63,7 +81,7 @@ wind_u_csv <- rasterToPoints(wind_u_brick) %>%
 # V vector
 unlink(here("grib_v/*"))
 for(i in seq_along(mod.list)) {
-  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam.pl?file=nam.t00z.awphys" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground=on&var_VGRD=on&subregion=&leftlon=0&rightlon=360&toplat=90&bottomlat=-90&dir=%2Fnam.20220512")
+  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam.pl?file=nam.t00z.awphys" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground=on&var_VGRD=on&subregion=&leftlon=0&rightlon=360&toplat=90&bottomlat=-90&dir=%2Fnam.", date)
   gribfile <- sprintf(gribstring, mod.list[i])
   download.file(url_ucomp, here("grib_v", gribfile))
   
@@ -101,15 +119,15 @@ wind_ras <- wind_data %>%
   relocate(wind, .before = date) %>% 
   mutate(wind = wind*1.94)
 
-# wind_angle <- wind_ras %>%
-#   dplyr::select(c("x", "y", "angle", "date", "wind")) %>% 
-#   group_by(x, y, date) %>% 
-#   summarize(angle = mean(circular(angle, type = "angles",units = "degrees", template = "clock24", rotation = "clock")),
-#          wind = mean(wind),
-#          x =x,
-#          y=y,
-#          date = date) %>% 
-#   mutate(angle = angle + 180)
+wind_angle <- wind_ras %>%
+  dplyr::select(c("x", "y", "angle", "date", "wind")) %>%
+  group_by(x, y, date) %>%
+  summarize(angle = mean(angle),
+         wind = mean(wind),
+         x =x,
+         y=y,
+         date = date) %>%
+  mutate(angle = angle + 180)
 
 wind_ras <- wind_ras %>% 
   dplyr::select(!c(angle))
@@ -164,7 +182,7 @@ names(ras) <-  date
 # resample 
 ```{r}
 
-wind_res <- c(0.005, 0.005) 
+wind_res <- c(0.005, 0.005)
 
 new_ras_wind <- raster(xmn = -121.45,
                       xmx = -117.05,
@@ -242,23 +260,23 @@ wind.list[[10]]
 # 
 # }
 # 
-# swell.list[[1]]
-# 
-# wind.arrows <- wind_angle %>% 
-#   ungroup() %>% 
-#     slice(which(row_number() %% 500 ==1))
-# 
-# test_wind <- wind.arrows %>% 
-#   ungroup() %>% 
-#   filter(date == date[[1]]) %>% 
-#   dplyr::select(!c("date"))
-# 
-# a <- wind.list[[1]] 
-# 
-# 
-# a +
-#   geom_spoke(data = test_wind, aes( x = x, y = y, angle = angle, 
-#            radius = scales::rescale(wind, c(.02, .15))), arrow = arrow(length = unit(.2, 'cm')))
+
+
+wind.arrows <- wind_angle %>%
+  ungroup() %>%
+    slice(which(row_number() %% 100 ==1))
+
+test_wind <- wind.arrows %>%
+  ungroup() %>%
+  filter(date == date[[1]]) %>%
+  dplyr::select(!c("date"))
+
+a <- wind.list[[1]]
+
+
+a +
+  geom_spoke(data = test_wind, aes( x = x, y = y, angle = angle,
+           radius = scales::rescale(wind, c(.02, .15))), arrow = arrow(length = unit(.2, 'cm')))
 
 ```
 
