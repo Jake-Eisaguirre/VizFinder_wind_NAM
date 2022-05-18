@@ -306,7 +306,7 @@ a +
 
 ```{r}
 
-string <- paste0("hours_since_ModRun(", mod_time ,"):")
+string <- paste0("hours_since_", mod_time ,"ModRun:")
 
 wind_ras_data$date <- sub("X", string, wind_ras_data$date)
 
