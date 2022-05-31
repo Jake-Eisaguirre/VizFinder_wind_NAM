@@ -13,32 +13,11 @@ library(tidyverse)
 library(raster)
 library(sf)
 library(lubridate)
-library(ggquiver)
 library(magick)
-library(metR)
-library(rCAT)
-library(circular)
-library(rNOMADS)
-library(fuzzyjoin)
+
 
 
 ```
-
-```{r}
-# url <- "https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t18z.wcoast.0p16.f000.grib2&lev_surface=on&var_DIRPW=on&var_HTSGW=on&var_PERPW=on&var_WIND=on&subregion=&leftlon=239.52&rightlon=240.35&toplat=34.26&bottomlat=33.68&dir=%2Fgfs.20220516%2F18%2Fwave%2Fgridded"
-# 
-# download.file(url, here("wave.grb"))
-# 
-# test <- here("wave.grb") %>% 
-#   brick() %>% 
-#   rasterToPoints() %>% 
-#   as.data.frame()
-# 
-# write_csv(test, here("wave.csv"))
-# 
-# plot(test)
-```
-
 
 # download NAM u and v component of wind
 ```{r}
@@ -52,7 +31,7 @@ mod_time  <- as.character(Sys.time()) %>%
 
 mod_time <-  str_sub(mod_time, 1, nchar(mod_time) -6)
 
-mod_time <- "18"  
+mod_time <- "06"  
 
 mod.list <- c("00", "03", "06", "09", "12", "15", "18", "21", "24", "27", 
               "30", "33", "36", "39", "42", "45", "48", "51", "54", "57", "60", 
@@ -148,16 +127,10 @@ vec_data <- left_join(agg_u_vecs, agg_v_vecs, by = c("x", "y")) %>%
 
 vec <- vec_data %>%
   group_by(x,y,date) %>%
-  summarise(wind = ((sqrt((u^2) + (v^2)))),
-         angle = (270 - (atan2(u, v) * (180/pi))%%360), 
-         #angle = ifelse(angle>180, angle, (angle-180)+360),
-         date = as.factor(date)) %>%
-  dplyr::select(x, everything()) %>% 
-  relocate(wind, .before = date) %>% 
-  mutate(wind = wind*1.94)
+  summarise(angle = (270 - (atan2(u, v) * (180/pi))%%360)) %>%  
+  dplyr::select(x, everything())
 
 
-hist(vec$angle)
 ```
 
 
@@ -206,6 +179,7 @@ for(i in 1:length(levels(wind_ras$date))) {
     dropLayer(2)
 }
 
+names(ras) <-  mod.list
 ```
 
 
@@ -236,7 +210,7 @@ gc()
 ```{r}
 
 wind_ras_data <- as.data.frame(rasterToPoints(final_ras_wind)) %>% 
-  pivot_longer(!c(x,y), names_to = "date", values_to = "wind")
+  pivot_longer(!c(x,y), names_to = "date", values_to = "wind") 
 
 
 ```
@@ -257,7 +231,7 @@ wind_values <- c(0, 10, 20, 30, 40, 50)
 wind.list = lapply(sort(unique(wind_ras_data$date)), function(i) {
   ggplot(data = wind_ras_data[wind_ras_data$date==i,], aes(y=y, x=x)) +
   geom_raster(aes(fill = wind), interpolate = T) +
-  facet_wrap(~date) +
+  facet_wrap(levels(~date)) +
   scale_fill_gradientn(colours = wind_pal(100), limits = wind_limits, breaks = wind_values) +
   theme_classic() +
   theme(axis.line=element_blank(),axis.text.x=element_blank(),
@@ -275,26 +249,9 @@ wind.list = lapply(sort(unique(wind_ras_data$date)), function(i) {
   coord_sf(xlim = c(-121.45, -117.06), ylim = c(32.36, 34.75), expand = F)
 })
 
-wind.list[[24]]
 
 ```
 
-```{r}
-
-
-test_wind <- vec %>%
-  ungroup() %>% 
-  filter(date == date[[20]]) %>%
-  dplyr::select(!c(date)) 
-
-a <- wind.list[[20]]
-
-a + geom_text(data = test_wind, aes(angle=-angle+90), label="→")
-
-
-
-
-```
 # loop to create each plot for wind vector 
 ```{r}
 new.wind.list <- list()
@@ -306,7 +263,6 @@ for(i in seq_along(wind.list)){
 #rm(swell.list, loc)
 #gc()
 
-new.wind.list[[2]]
 ```
 
 
@@ -320,17 +276,17 @@ w_dpi <- c(215)
 
 unlink("pngs/old/*")
 
-for(i in 1:length(wind.list)){
+for(i in 1:length(new.wind.list)){
   
   ggsave(paste0(here('pngs', 'old'), "/", wind_ras_data$date[i], '.png'), dpi = w_dpi, 
-         bg = "transparent", plot = wind.list[[i]])
+         bg = "transparent", plot = new.wind.list[[i]])
 }
 ```
 
 ```{r}
 unlink("pngs/site_ready/*")
 
-for(i in 1:length(wind.list)){
+for(i in 1:length(new.wind.list)){
   hs <- image_read(paste0(here('pngs', 'old'), "/", wind_ras_data$date[i], '.png'))
   hs <- image_trim(hs)
   hs <- image_transparent(hs, "white")
