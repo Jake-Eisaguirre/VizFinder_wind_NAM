@@ -46,7 +46,7 @@ mod_time  <- as.character((.POSIXct(s, "UTC") - (3 * 60 * 60))) %>%
 
 mod_time <-  str_sub(mod_time, 1, nchar(mod_time) -6)
 
-mod_time <- "18"
+#mod_time <- "18"
 
 mod.list <- c("00", "03", "06", "09", "12", "15", "18", "21", "24", "27", 
               "30", "33", "36", "39", "42", "45", "48", "51", "54", "57", "60", 
@@ -54,6 +54,8 @@ mod.list <- c("00", "03", "06", "09", "12", "15", "18", "21", "24", "27",
 
 gribstring <- "wind_u_%s.grb"
 wind.u <- vector("list", length(mod.list))
+
+
 
 #U Vector  
 unlink(here("grib_u/*"))
@@ -76,6 +78,8 @@ wind_u_csv <- rasterToPoints(wind_u_brick) %>%
 
 
 
+
+
 # V vector - 
 unlink(here("grib_v/*"))
 for(i in seq_along(mod.list)) {
@@ -92,7 +96,6 @@ for(i in seq_along(mod.list)) {
 wind_v_brick <- stack(here("grib_v", list.files(path = here("grib_v"), pattern = "*.grb"))) %>% 
   projectRaster(crs = 4326) 
 
-  
 
 wind_v_csv <- rasterToPoints(wind_v_brick) %>% 
   as.data.frame() %>% 
@@ -112,10 +115,6 @@ agg_u_vecs <- raster::aggregate(wind_u_brick, 3, mean) %>%
   group_by(x,y, date) %>% 
   summarise(u = mean(u))
 
-#agg_u_vecs$date <- str_sub(agg_u_vecs$date, 1, nchar(agg_u_vecs$date) -2)
-
-
-
 
 agg_v_vecs <- raster::aggregate(wind_v_brick, 3, mean) %>% 
   mask(merged_shapes, inverse = T) %>% 
@@ -126,15 +125,8 @@ agg_v_vecs <- raster::aggregate(wind_v_brick, 3, mean) %>%
   summarise(v = mean(v))
  
 
-#agg_v_vecs$date <- str_sub(agg_v_vecs$date, 1, nchar(agg_v_vecs$date) -2)
 
 vec_data <- left_join(agg_u_vecs, agg_v_vecs, by = c("x", "y", "date"))
-
-
-# #%>% 
-#   group_by(x,y,date) %>% 
-#   summarise(u = mean(u),
-#          v = mean(v))
 
 vec <- vec_data %>%
   mutate(angle = (270 - (atan2(u, v) * (180/pi))%%360)) %>%  
@@ -176,7 +168,6 @@ gc()
 utc_time <- as_datetime(s, "UTC")
 
 pst_dates <-list()
-
 
 mod_runs <- mod.list %>% 
   as.numeric()
