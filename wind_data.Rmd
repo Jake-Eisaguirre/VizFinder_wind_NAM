@@ -46,7 +46,7 @@ mod_time  <- as.character((.POSIXct(s, "UTC") - (3 * 60 * 60))) %>%
 
 mod_time <-  str_sub(mod_time, 1, nchar(mod_time) -6)
 
-#mod_time <- "18"
+#mod_time <- "12"
 
 mod.list <- c("00", "03", "06", "09", "12", "15", "18", "21", "24", "27", 
               "30", "33", "36", "39", "42", "45", "48", "51", "54", "57", "60", 
@@ -101,6 +101,8 @@ wind_v_csv <- rasterToPoints(wind_v_brick) %>%
   as.data.frame() %>% 
   pivot_longer(!c(x,y), names_to = "date", values_to = "v")
 
+
+
 ```
 
 
@@ -129,12 +131,15 @@ agg_v_vecs <- raster::aggregate(wind_v_brick, 3, mean) %>%
 vec_data <- left_join(agg_u_vecs, agg_v_vecs, by = c("x", "y", "date"))
 
 vec <- vec_data %>%
-  mutate(angle = (270 - (atan2(u, v) * (180/pi))%%360)) %>%  
-  dplyr::select(x, everything())
+  mutate(angle = (270 - (atan2(u, v) * (180/pi))%%360),
+         wind = ((sqrt((u^2) + (v^2))))) %>%  
+  dplyr::select(x, everything()) %>% 
+  dplyr::select(!c(u,v))
 
 vec$date <- str_replace(vec$date, "wind_u_", "")
 
-
+rm(wind_v_brick, wind_u_brick, vec_data)
+gc()
 ```
 
 
@@ -158,7 +163,7 @@ wind_ras <- wind_data %>%
 
 
 
-rm(wind_date, wind_data_dates)
+rm(wind_data, wind_u_csv, wind_v,csv)
 gc()
 ```
 
@@ -185,7 +190,8 @@ pst <- pst_dates %>%
   as.POSIXct(origin = "1970-01-01")
 
 
-
+rm(pst_dates)
+gc()
 
 ```
 
@@ -232,7 +238,7 @@ cropped_wind <- mask(re_samp_wind, merged_shapes, inverse = T)
 
 final_ras_wind <- projectRaster(cropped_wind, crs = 4326)
 
-rm(new_ras_wind, re_samp_wind)
+rm(new_ras_wind, re_samp_wind, ras)
 gc()
 
 ```
@@ -283,6 +289,7 @@ wind.list = lapply(sort(unique(wind_ras_data$date)), function(i) {
 
 ```
 
+
 # loop to create each plot for wind vector 
 ```{r}
 new.wind.list <- list()
@@ -291,10 +298,9 @@ for(i in seq_along(wind.list)){
   new.wind.list[[i]] <- wind.list[[i]] +
     geom_text(data = vec[vec$date==unique(vec$date)[i],], aes(angle=-angle+90), label="→", check_overlap = T)
 }
-#rm(swell.list, loc)
-#gc()
 
-new.wind.list[[1]]
+rm(wind.list)
+gc()
 ```
 
 
