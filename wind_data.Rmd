@@ -46,7 +46,7 @@ mod_time  <- as.character((.POSIXct(s, "UTC") - (3 * 60 * 60))) %>%
 
 mod_time <-  str_sub(mod_time, 1, nchar(mod_time) -6)
 
-#mod_time <- "12"
+mod_time <- "18"
 
 mod.list <- c("00", "03", "06", "09", "12", "15", "18", "21", "24", "27", 
               "30", "33", "36", "39", "42", "45", "48", "51", "54", "57", "60", 
@@ -58,7 +58,7 @@ wind.u <- vector("list", length(mod.list))
 #U Vector  
 unlink(here("grib_u/*"))
 for(i in seq_along(mod.list)) {
-  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam.pl?file=nam.t", mod_time, "z.awphys" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground=on&subregion=&leftlon=238.596&rightlon=242.936&toplat=35.00&bottomlat=32.36&dir=%2Fnam.", date)
+  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam.pl?file=nam.t", mod_time, "z.awphys" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground=on&var_UGRD=on&subregion=&leftlon=238.596&rightlon=242.936&toplat=35.00&bottomlat=32.36&dir=%2Fnam.", date)
   
   gribfile <- sprintf(gribstring, mod.list[i])
   
@@ -80,7 +80,7 @@ wind_u_csv <- rasterToPoints(wind_u_brick) %>%
 unlink(here("grib_v/*"))
 for(i in seq_along(mod.list)) {
   
-  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam.pl?file=nam.t", mod_time, "z.awphys" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground=on&subregion=&leftlon=238.596&rightlon=242.936&toplat=35.00&bottomlat=32.36&dir=%2Fnam.", date)
+  url_ucomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_nam.pl?file=nam.t", mod_time, "z.awphys" , mod.list[[i]] , ".tm00.grib2&lev_10_m_above_ground=on&var_VGRD=on&subregion=&leftlon=238.596&rightlon=242.936&toplat=35.00&bottomlat=32.36&dir=%2Fnam.", date)
   
   gribfile <- sprintf(gribstring, mod.list[i])
   
@@ -112,6 +112,10 @@ agg_u_vecs <- raster::aggregate(wind_u_brick, 3, mean) %>%
   group_by(x,y, date) %>% 
   summarise(u = mean(u))
 
+#agg_u_vecs$date <- str_sub(agg_u_vecs$date, 1, nchar(agg_u_vecs$date) -2)
+
+
+
 
 agg_v_vecs <- raster::aggregate(wind_v_brick, 3, mean) %>% 
   mask(merged_shapes, inverse = T) %>% 
@@ -120,18 +124,23 @@ agg_v_vecs <- raster::aggregate(wind_v_brick, 3, mean) %>%
   pivot_longer(!c(x,y), names_to = "date", values_to = "v") %>% 
   group_by(x,y, date) %>% 
   summarise(v = mean(v))
+ 
 
-vec_data <- left_join(agg_u_vecs, agg_v_vecs, by = c("x", "y")) %>% 
-  dplyr::select(!c("date.y")) %>% 
-  rename(date = date.x) %>% 
-  group_by(x,y,date) %>% 
-  summarise(u = mean(u),
-         v = mean(v))
+#agg_v_vecs$date <- str_sub(agg_v_vecs$date, 1, nchar(agg_v_vecs$date) -2)
+
+vec_data <- left_join(agg_u_vecs, agg_v_vecs, by = c("x", "y", "date"))
+
+
+# #%>% 
+#   group_by(x,y,date) %>% 
+#   summarise(u = mean(u),
+#          v = mean(v))
 
 vec <- vec_data %>%
-  group_by(x,y,date) %>%
-  summarise(angle = (270 - (atan2(u, v) * (180/pi))%%360)) %>%  
+  mutate(angle = (270 - (atan2(u, v) * (180/pi))%%360)) %>%  
   dplyr::select(x, everything())
+
+vec$date <- str_replace(vec$date, "wind_u_", "")
 
 
 ```
@@ -140,16 +149,14 @@ vec <- vec_data %>%
 # convert u and v
 ```{r}
 
-wind_data <- left_join(wind_u_csv, wind_v_csv, by = c("x", "y")) %>% 
-  dplyr::select(!c("date.y")) %>% 
-  rename(date = date.x)
+wind_data <- left_join(wind_u_csv, wind_v_csv, by = c("x", "y", "date")) 
+  
   
 wind_data$date <- str_replace(wind_data$date, "wind_u_", "")
-
-wind_data$date <- str_sub(wind_data$date, 1, nchar(wind_data$date) -2)
   
 
 wind_ras <- wind_data %>%
+  group_by(x,y,date) %>% 
   mutate(wind = ((sqrt((u^2) + (v^2)))),
          date = as.factor(date)) %>%
   dplyr::select(-c(u, v)) %>% 
@@ -296,6 +303,7 @@ for(i in seq_along(wind.list)){
 #rm(swell.list, loc)
 #gc()
 
+new.wind.list[[1]]
 ```
 
 
