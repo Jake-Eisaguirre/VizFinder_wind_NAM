@@ -131,14 +131,13 @@ agg_v_vecs <- raster::aggregate(wind_v_brick, 3, mean) %>%
 vec_data <- left_join(agg_u_vecs, agg_v_vecs, by = c("x", "y", "date"))
 
 vec <- vec_data %>%
-  mutate(angle = (270 - (atan2(u, v) * (180/pi))%%360),
-         wind = ((sqrt((u^2) + (v^2))))) %>%  
+  mutate(angle = (270 - (atan2(u, v) * (180/pi))%%360)) %>%  
   dplyr::select(x, everything()) %>% 
   dplyr::select(!c(u,v))
 
 vec$date <- str_replace(vec$date, "wind_u_", "")
 
-rm(wind_v_brick, wind_u_brick, vec_data)
+rm(wind_v_brick, wind_u_brick, vec_data, agg_v_vecs, agg_u_vecs)
 gc()
 ```
 
@@ -163,7 +162,7 @@ wind_ras <- wind_data %>%
 
 
 
-rm(wind_data, wind_u_csv, wind_v,csv)
+rm(wind_data, wind_u_csv, wind_v_csv)
 gc()
 ```
 
