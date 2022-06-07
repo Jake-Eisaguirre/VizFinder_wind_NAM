@@ -33,6 +33,8 @@ merged_shapes <- bind_rows(ca, islands)
 ```
 
 # download NAM u and v component of wind
+
+# run times: 02:00PST, 08:00PST, 14:00PST, 20:00PST
 ```{r}
 
 date <- as_date(Sys.Date(), tz="UTC") %>% 
@@ -295,7 +297,7 @@ new.wind.list <- list()
 for(i in seq_along(wind.list)){
   
   new.wind.list[[i]] <- wind.list[[i]] +
-    geom_text(data = vec[vec$date==unique(vec$date)[i],], aes(angle=-angle+90), label="→", check_overlap = T)
+    geom_text(data = vec[vec$date==unique(vec$date)[i],], aes(angle=-angle+90), label="→", check_overlap = T, size = 3)
 }
 
 rm(wind.list)
