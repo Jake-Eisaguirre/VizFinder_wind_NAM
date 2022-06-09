@@ -111,7 +111,7 @@ wind_v_csv <- rasterToPoints(wind_v_brick) %>%
 # average for wind vectors
 ```{r}
 
-agg_u_vecs <- raster::aggregate(wind_u_brick, 3, mean) %>% 
+agg_u_vecs <- raster::aggregate(wind_u_brick, 2, mean) %>% 
   mask(merged_shapes, inverse = T) %>% 
   rasterToPoints() %>% 
   as.data.frame() %>% 
@@ -120,7 +120,7 @@ agg_u_vecs <- raster::aggregate(wind_u_brick, 3, mean) %>%
   summarise(u = mean(u))
 
 
-agg_v_vecs <- raster::aggregate(wind_v_brick, 3, mean) %>% 
+agg_v_vecs <- raster::aggregate(wind_v_brick, 2, mean) %>% 
   mask(merged_shapes, inverse = T) %>% 
   rasterToPoints() %>% 
   as.data.frame() %>% 
@@ -297,7 +297,7 @@ new.wind.list <- list()
 for(i in seq_along(wind.list)){
   
   new.wind.list[[i]] <- wind.list[[i]] +
-    geom_text(data = vec[vec$date==unique(vec$date)[i],], aes(angle=-angle+90), label="→", check_overlap = T, size = 3)
+    geom_text(data = vec[vec$date==unique(vec$date)[i],], aes(angle=-angle+90), label="→", check_overlap = T, size = 2)
 }
 
 rm(wind.list)
