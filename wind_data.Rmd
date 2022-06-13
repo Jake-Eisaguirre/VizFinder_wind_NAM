@@ -111,8 +111,7 @@ wind_v_csv <- rasterToPoints(wind_v_brick) %>%
 # average for wind vectors
 ```{r}
 
-agg_u_vecs <- raster::aggregate(wind_u_brick, 2, mean) %>% 
-  mask(merged_shapes, inverse = T) %>% 
+agg_u_vecs <- mask(wind_u_brick, merged_shapes, inverse = T) %>% 
   rasterToPoints() %>% 
   as.data.frame() %>% 
   pivot_longer(!c(x,y), names_to = "date", values_to = "u") %>% 
@@ -120,8 +119,7 @@ agg_u_vecs <- raster::aggregate(wind_u_brick, 2, mean) %>%
   summarise(u = mean(u))
 
 
-agg_v_vecs <- raster::aggregate(wind_v_brick, 2, mean) %>% 
-  mask(merged_shapes, inverse = T) %>% 
+agg_v_vecs <- mask(wind_v_brick, merged_shapes, inverse = T) %>% 
   rasterToPoints() %>% 
   as.data.frame() %>% 
   pivot_longer(!c(x,y), names_to = "date", values_to = "v") %>% 
