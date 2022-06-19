@@ -30,6 +30,7 @@ ca <- read_sf(here('data', "shape","s_11au16", "s_11au16.shp")) %>%
   dplyr::select(geometry)
 
 merged_shapes <- bind_rows(ca, islands)
+
 ```
 
 # download NAM u and v component of wind
@@ -240,6 +241,7 @@ final_ras_wind <- projectRaster(cropped_wind, crs = 4326)
 rm(new_ras_wind, re_samp_wind, ras)
 gc()
 
+
 ```
 
 # points
@@ -282,10 +284,10 @@ wind.list = lapply(sort(unique(wind_ras_data$date)), function(i) {
         plot.margin=unit(c(0,0,0,0), "null"),
         strip.background = element_blank(),
         strip.text.x = element_blank()) +
-  coord_sf(xlim = c(-121.45, -117.06), ylim = c(32.36, 34.75), expand = F, datum = 3857)
+  coord_sf(xlim = c(-121.45, -117.06), ylim = c(32.36, 34.75), expand = F)
 })
 
-
+wind.list[[1]]
 ```
 
 
